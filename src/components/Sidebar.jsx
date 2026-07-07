@@ -9,7 +9,9 @@ import {
   Check,
   Building,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Plus,
+  Layers
 } from 'lucide-react';
 
 export default function Sidebar({ 
@@ -20,7 +22,11 @@ export default function Sidebar({
   isCollapsed,
   setIsCollapsed,
   region,
-  setRegion
+  setRegion,
+  pipelines = [],
+  activePipelineId,
+  setActivePipelineId,
+  onCreatePipeline
 }) {
   const [isEditingBrand, setIsEditingBrand] = useState(false);
   const [tempBrandName, setTempBrandName] = useState(companyName);
@@ -37,6 +43,15 @@ export default function Sidebar({
       setIsEditingBrand(false);
     }
   };
+
+  const handleCreateBranch = () => {
+    const name = prompt("Enter new Pipeline Branch name (e.g. Houston Division):");
+    if (name && name.trim()) {
+      onCreatePipeline(name.trim());
+    }
+  };
+
+  const activeBranchName = pipelines.find(p => p.id === activePipelineId)?.name || 'Default';
 
   return (
     <aside 
@@ -59,9 +74,49 @@ export default function Sidebar({
             )}
           </div>
 
+          {/* Branch Switcher (Multi-Workspace) */}
+          {!isCollapsed ? (
+            <div className="bg-slate-900/40 p-2.5 rounded-lg border border-slate-800/40 space-y-2">
+              <div className="flex justify-between items-center">
+                <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Branch Division</label>
+                <button 
+                  onClick={handleCreateBranch}
+                  className="text-[10px] text-brand-400 hover:text-brand-300 font-bold uppercase tracking-wider flex items-center gap-0.5 transition-colors"
+                  title="Create new pipeline branch"
+                >
+                  <Plus className="w-2.5 h-2.5" /> New
+                </button>
+              </div>
+              <select
+                value={activePipelineId}
+                onChange={(e) => setActivePipelineId(e.target.value)}
+                className="w-full bg-slate-950 text-xs text-white border border-slate-800 rounded-lg p-2 focus:outline-none focus:border-brand-500/50 transition-all cursor-pointer font-semibold"
+              >
+                {pipelines.map(pl => (
+                  <option key={pl.id} value={pl.id} className="bg-slate-950">
+                    {pl.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <div 
+              className="flex flex-col items-center justify-center p-2 rounded-lg bg-slate-900/20 border border-slate-800/40 cursor-pointer hover:bg-slate-900/60 hover:border-brand-500/20 transition-all select-none text-[10px] text-slate-400 font-bold" 
+              title={`Active Branch: ${activeBranchName}\nClick to toggle branches.`}
+              onClick={() => {
+                const currentIndex = pipelines.findIndex(p => p.id === activePipelineId);
+                const nextIndex = (currentIndex + 1) % pipelines.length;
+                setActivePipelineId(pipelines[nextIndex].id);
+              }}
+            >
+              <Layers className="w-3.5 h-3.5 text-slate-500 mb-0.5" />
+              <span>BRANCH</span>
+            </div>
+          )}
+
           {/* Quick Client Configurator */}
           {!isCollapsed ? (
-            <div className="mt-1 bg-slate-900/40 p-2.5 rounded-lg border border-slate-800/40 space-y-2">
+            <div className="bg-slate-900/40 p-2.5 rounded-lg border border-slate-800/40 space-y-2">
               {isEditingBrand ? (
                 <div className="space-y-2">
                   <label className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider block">Company Name</label>
@@ -137,7 +192,6 @@ export default function Sidebar({
               className="flex justify-center p-2 rounded-lg bg-slate-900/20 border border-slate-800/40 cursor-pointer hover:bg-slate-900/60 transition-all select-none" 
               title={`Active Currency Format: ${region}`}
               onClick={() => {
-                // cycle region toggle on click in collapsed state
                 const nextRegion = region === 'US' ? 'UK' : region === 'UK' ? 'AU' : 'US';
                 setRegion(nextRegion);
               }}
@@ -187,7 +241,7 @@ export default function Sidebar({
               <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Demo Active</span>
             </div>
             <p className="text-[11px] text-slate-400 mt-1">
-              Select UK/AU tabs to dynamically override currency formats.
+              Data is saved automatically to browser local storage.
             </p>
           </div>
         ) : (

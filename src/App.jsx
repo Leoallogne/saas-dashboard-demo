@@ -9,17 +9,60 @@ import ToastContainer from './components/ToastNotification';
 import { initialJobs, initialTrucks } from './data/mockData';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('dashboard');
-  const [jobs, setJobs] = useState(initialJobs);
-  const [trucks, setTrucks] = useState(initialTrucks);
-  const [companyName, setCompanyName] = useState('Houston Movers');
-  const [selectedJob, setSelectedJob] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [region, setRegion] = useState('US'); // 'US', 'UK', 'AU'
-  
-  // Toast notifications state
   const [toasts, setToasts] = useState([]);
+
+  // 1. Persistent State Initialization using localStorage
+  const [pipelines, setPipelines] = useState(() => {
+    const saved = localStorage.getItem('moveops_pipelines');
+    return saved ? JSON.parse(saved) : [
+      { id: 'pl-1', name: 'Austin HQ (Default)' },
+      { id: 'pl-2', name: 'Dallas Division' }
+    ];
+  });
+  
+  const [activePipelineId, setActivePipelineId] = useState(() => {
+    return localStorage.getItem('moveops_active_pipeline_id') || 'pl-1';
+  });
+
+  const [jobs, setJobs] = useState(() => {
+    const saved = localStorage.getItem('moveops_jobs');
+    if (saved) return JSON.parse(saved);
+    // map initial jobs to have default pipeline ID
+    return initialJobs.map(j => ({ ...j, pipelineId: 'pl-1' }));
+  });
+
+  const [trucks, setTrucks] = useState(() => {
+    const saved = localStorage.getItem('moveops_trucks');
+    return saved ? JSON.parse(saved) : initialTrucks;
+  });
+
+  const [companyName, setCompanyName] = useState(() => {
+    return localStorage.getItem('moveops_company_name') || 'Houston Movers';
+  });
+
+  const [selectedJob, setSelectedJob] = useState(null);
+
+  // 2. Synchronize State changes with LocalStorage
+  useEffect(() => {
+    if (!isLoading) {
+      localStorage.setItem('moveops_jobs', JSON.stringify(jobs));
+      localStorage.setItem('moveops_trucks', JSON.stringify(trucks));
+      localStorage.setItem('moveops_pipelines', JSON.stringify(pipelines));
+      localStorage.setItem('moveops_active_pipeline_id', activePipelineId);
+      localStorage.setItem('moveops_company_name', companyName);
+    }
+  }, [jobs, trucks, pipelines, activePipelineId, companyName, isLoading]);
+
+  // Simulate loading state for 1.2s to present professional skeleton load
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, []);
 
   // Toast helpers
   const addToast = (type, title, message) => {
@@ -53,14 +96,6 @@ export default function App() {
       }).format(amount);
     }
   };
-
-  // Simulate loading state for 1.2s to present professional skeleton load
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 1200);
-    return () => clearTimeout(timer);
-  }, []);
 
   // Update a job's kanban stage/status
   const handleUpdateJobStatus = (jobId, newStatus) => {
@@ -129,6 +164,7 @@ export default function App() {
     }
   };
 
+  // Toggle Truck Maintenance
   const handleToggleMaintenance = (truckId, dateStr) => {
     let truckName = 'Truck';
     setTrucks(prevTrucks => 
@@ -151,8 +187,8 @@ export default function App() {
                 return job;
               })
             );
-            // Search if any job was affected to customize the notification text
-            const affectedJobs = jobs.filter(j => j.truckId === truckId && j.date === dateStr);
+            // Search if any job was affected
+            const affectedJobs = jobs.filter(j => j.truckId === truckId && j.date === dateStr && j.pipelineId === activePipelineId);
             if (affectedJobs.length > 0) {
               addToast('warning', 'Schedule Unassigned', `Unassigned ${affectedJobs.length} job(s) from ${truckName} due to scheduled maintenance.`);
             } else {
@@ -168,6 +204,7 @@ export default function App() {
     );
   };
 
+  // Update Profitability Slider Variables
   const handleUpdateJobProfitability = (jobId, profitabilityData) => {
     setJobs(prevJobs => 
       prevJobs.map(job => 
@@ -185,10 +222,20 @@ export default function App() {
     addToast('info', 'Profitability Updated', `Recalculated wages & net profit for ${selectedJob?.clientName || 'job'}`);
   };
 
+  // Create Workspace / Pipeline Branch
+  const handleCreatePipeline = (name) => {
+    const newId = `pl-${Math.random().toString(36).substring(2, 9)}`;
+    const newPipelineObj = { id: newId, name };
+    setPipelines(prev => [...prev, newPipelineObj]);
+    setActivePipelineId(newId);
+    addToast('success', 'Workspace Switched', `Created and switched to branch: ${name}`);
+  };
+
   const handleAddNewJob = (newJobData) => {
-    // Add default values for crew/payroll
+    // Add default values for crew/payroll and tag with current active pipeline branch!
     const jobWithPayroll = {
       ...newJobData,
+      pipelineId: activePipelineId,
       crewSize: 3,
       durationHours: 6,
       crewHourlyRate: 25
@@ -197,12 +244,15 @@ export default function App() {
     addToast('success', 'New Inquiry Created', `Created job files for ${newJobData.clientName}`);
   };
 
+  // 3. Filter Master Jobs List by Active Pipeline ID
+  const activePipelineJobs = jobs.filter(j => j.pipelineId === activePipelineId);
+
   const renderActiveView = () => {
     switch (activeTab) {
       case 'dashboard':
         return (
           <ExecutiveDashboard 
-            jobs={jobs} 
+            jobs={activePipelineJobs} 
             trucks={trucks} 
             companyName={companyName}
             setActiveTab={setActiveTab}
@@ -212,7 +262,7 @@ export default function App() {
       case 'pipeline':
         return (
           <JobPipeline 
-            jobs={jobs} 
+            jobs={activePipelineJobs} 
             onSelectJob={setSelectedJob}
             onUpdateJobStatus={handleUpdateJobStatus}
             onAddNewJob={handleAddNewJob}
@@ -222,7 +272,7 @@ export default function App() {
       case 'scheduler':
         return (
           <FleetScheduler 
-            jobs={jobs} 
+            jobs={activePipelineJobs} 
             trucks={trucks} 
             onSelectJob={setSelectedJob} 
             onAssignTruck={handleAssignTruck}
@@ -252,6 +302,10 @@ export default function App() {
         setIsCollapsed={setSidebarCollapsed}
         region={region}
         setRegion={setRegion}
+        pipelines={pipelines}
+        activePipelineId={activePipelineId}
+        setActivePipelineId={setActivePipelineId}
+        onCreatePipeline={handleCreatePipeline}
       />
 
       {/* Main Panel Content */}
