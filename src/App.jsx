@@ -129,6 +129,45 @@ export default function App() {
     }
   };
 
+  const handleToggleMaintenance = (truckId, dateStr) => {
+    let truckName = 'Truck';
+    setTrucks(prevTrucks => 
+      prevTrucks.map(truck => {
+        if (truck.id === truckId) {
+          truckName = truck.name.split(' ')[0] + ' ' + truck.name.split(' ')[1];
+          const dates = truck.maintenanceDates || [];
+          const isMaintenance = dates.includes(dateStr);
+          const updatedDates = isMaintenance
+            ? dates.filter(d => d !== dateStr)
+            : [...dates, dateStr];
+          
+          if (!isMaintenance) {
+            // Auto unassign jobs scheduled on this day & truck
+            setJobs(prevJobs => 
+              prevJobs.map(job => {
+                if (job.truckId === truckId && job.date === dateStr) {
+                  return { ...job, truckId: null };
+                }
+                return job;
+              })
+            );
+            // Search if any job was affected to customize the notification text
+            const affectedJobs = jobs.filter(j => j.truckId === truckId && j.date === dateStr);
+            if (affectedJobs.length > 0) {
+              addToast('warning', 'Schedule Unassigned', `Unassigned ${affectedJobs.length} job(s) from ${truckName} due to scheduled maintenance.`);
+            } else {
+              addToast('info', 'Maintenance Scheduled', `${truckName} scheduled for service on ${dateStr}`);
+            }
+          } else {
+            addToast('success', 'Truck Available', `${truckName} marked available on ${dateStr}`);
+          }
+          return { ...truck, maintenanceDates: updatedDates };
+        }
+        return truck;
+      })
+    );
+  };
+
   const handleUpdateJobProfitability = (jobId, profitabilityData) => {
     setJobs(prevJobs => 
       prevJobs.map(job => 
@@ -188,6 +227,7 @@ export default function App() {
             onSelectJob={setSelectedJob} 
             onAssignTruck={handleAssignTruck}
             onUpdateJobStatus={handleUpdateJobStatus}
+            onToggleMaintenance={handleToggleMaintenance}
             formatCurrency={formatCurrency}
           />
         );

@@ -11,10 +11,19 @@ import {
   AlertTriangle,
   MapPin,
   Layers,
-  Info
+  Info,
+  Wrench
 } from 'lucide-react';
 
-export default function FleetScheduler({ jobs, trucks, onSelectJob, onAssignTruck, onUpdateJobStatus, formatCurrency }) {
+export default function FleetScheduler({ 
+  jobs, 
+  trucks, 
+  onSelectJob, 
+  onAssignTruck, 
+  onUpdateJobStatus, 
+  onToggleMaintenance,
+  formatCurrency 
+}) {
   // Static dates corresponding to the mockData dates (July 6, 2026 to July 12, 2026)
   const weekDays = [
     { name: 'Mon', dateStr: '2026-07-06', label: 'July 6' },
@@ -62,6 +71,10 @@ export default function FleetScheduler({ jobs, trucks, onSelectJob, onAssignTruc
     setTargetTruckId('');
   };
 
+  // Check if target dispatcher options are under maintenance
+  const selectedTruckObject = trucks.find(t => t.id === targetTruckId);
+  const isSelectedTruckMaintenance = selectedTruckObject?.maintenanceDates?.includes(targetDate);
+
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
@@ -69,7 +82,7 @@ export default function FleetScheduler({ jobs, trucks, onSelectJob, onAssignTruc
         <div>
           <h2 className="text-2xl font-bold text-white tracking-tight">Fleet Scheduler</h2>
           <p className="text-slate-400 text-sm mt-0.5">
-            Manage weekly schedules. Warnings will highlight double-booking conflicts.
+            Manage schedules. Hover empty slots to add Maintenance or drag/click blocks to schedule.
           </p>
         </div>
         <div className="flex items-center gap-2 text-xs font-semibold text-slate-400 bg-slate-900 border border-slate-800 p-2 rounded-xl">
@@ -125,77 +138,105 @@ export default function FleetScheduler({ jobs, trucks, onSelectJob, onAssignTruc
                   {/* Days Cells */}
                   {weekDays.map(day => {
                     const assignedJobs = getJobsForCell(truck.id, day.dateStr);
+                    const isUnderMaintenance = truck.maintenanceDates?.includes(day.dateStr);
                     const isConflict = assignedJobs.length > 1;
 
                     return (
                       <div 
                         key={day.dateStr} 
                         className={`h-22 rounded-xl border p-2 flex flex-col gap-1 transition-all relative group/cell ${
-                          isConflict 
-                            ? 'bg-red-950/20 border-red-500/40 ring-1 ring-red-500/20' 
-                            : 'bg-slate-950/40 border-slate-900/50 hover:border-slate-800'
+                          isUnderMaintenance
+                            ? 'bg-slate-900/40 border-slate-850'
+                            : isConflict 
+                              ? 'bg-red-950/20 border-red-500/40 ring-1 ring-red-500/20' 
+                              : 'bg-slate-950/40 border-slate-900/50 hover:border-slate-800'
                         }`}
                       >
-                        {/* Conflict Warning Header */}
-                        {isConflict && (
-                          <div className="flex items-center gap-1 text-red-400 font-extrabold text-[8px] tracking-wide bg-red-500/10 px-1 rounded absolute top-1 right-1 z-10 border border-red-500/20 animate-pulse">
-                            <AlertTriangle className="w-2.5 h-2.5" />
-                            <span>CONFLICT</span>
-                          </div>
-                        )}
-
-                        <div className="flex flex-col gap-1 h-full overflow-y-auto pr-0.5">
-                          {assignedJobs.map(job => (
-                            <div 
-                              key={job.id}
-                              onClick={() => onSelectJob(job)}
-                              className={`rounded-lg p-1.5 cursor-pointer text-left border relative group/item select-none transition-all ${
-                                job.status === 'Completed'
-                                  ? 'bg-emerald-950/30 border-emerald-500/25 hover:bg-emerald-950/50 hover:border-emerald-500/40 text-emerald-400'
-                                  : 'bg-brand-950/30 border-brand-500/25 hover:bg-brand-950/50 hover:border-brand-500/40 text-brand-400'
-                              }`}
-                            >
-                              <div className="text-[9px] font-bold uppercase truncate max-w-[80px]">
-                                {job.clientName}
-                              </div>
-                              <div className="flex justify-between items-center text-[8px] text-slate-400 mt-0.5">
-                                <span className="truncate max-w-[50px]">{job.origin.split(' ')[1] || 'Austin'}</span>
-                                <span className="font-bold text-white">{formatCurrency(job.revenue || job.estimateAmount)}</span>
-                              </div>
-
-                              {/* Hover Tooltip - Positioned relatively to avoid cuts */}
-                              <div className="absolute hidden group-hover/item:block bg-slate-900/95 border border-slate-800 text-white rounded-xl p-3.5 z-40 shadow-2xl w-60 text-xs bottom-full mb-2 left-1/2 -translate-x-1/2 pointer-events-none space-y-2 backdrop-blur-md">
-                                <div className="flex justify-between items-start border-b border-slate-800 pb-1.5">
-                                  <span className="font-extrabold text-brand-400">{job.clientName}</span>
-                                  <span className="font-black text-slate-300">{formatCurrency(job.revenue || job.estimateAmount)}</span>
-                                </div>
-                                <div className="space-y-1 text-[10px]">
-                                  <div className="flex gap-1 items-start text-slate-300">
-                                    <MapPin className="w-3.5 h-3.5 text-brand-500 flex-shrink-0 mt-0.5" />
-                                    <span>
-                                      {job.origin.split(',')[0]} ➜ {job.destination.split(',')[0]}
-                                    </span>
-                                  </div>
-                                  <div className="flex gap-1 items-start text-slate-300">
-                                    <Layers className="w-3.5 h-3.5 text-slate-500 flex-shrink-0 mt-0.5" />
-                                    <span className="truncate">{job.items}</span>
-                                  </div>
-                                </div>
-                                <div className="text-[9px] text-slate-500 border-t border-slate-800/60 pt-1 text-center font-medium">
-                                  Click block to open dispatch sheet
-                                </div>
-                              </div>
-
-                            </div>
-                          ))}
-                        </div>
-
-                        {assignedJobs.length === 0 && (
-                          <div className="h-full w-full flex items-center justify-center opacity-0 group-hover/cell:opacity-100 transition-opacity">
-                            <span className="text-[8px] font-bold text-slate-700 uppercase tracking-wider">
-                              Unscheduled
+                        {/* Maintenance Lock Layout */}
+                        {isUnderMaintenance ? (
+                          <div 
+                            onClick={() => onToggleMaintenance(truck.id, day.dateStr)}
+                            className="absolute inset-1 rounded-lg p-1 bg-slate-900 border border-slate-800/80 flex flex-col justify-center items-center text-center cursor-pointer hover:bg-slate-800 hover:border-brand-500/20 transition-all select-none group/maint"
+                            title="Click to cancel service schedule"
+                          >
+                            <Wrench className="w-3.5 h-3.5 text-amber-500 group-hover/maint:animate-spin" />
+                            <span className="text-[8px] font-black text-amber-500 uppercase tracking-widest mt-1 block">
+                              SERVICE
+                            </span>
+                            <span className="text-[6px] text-slate-500 font-bold group-hover/maint:text-white uppercase transition-colors mt-0.5">
+                              Release
                             </span>
                           </div>
+                        ) : (
+                          <>
+                            {/* Conflict Warning Header */}
+                            {isConflict && (
+                              <div className="flex items-center gap-1 text-red-400 font-extrabold text-[8px] tracking-wide bg-red-500/10 px-1 rounded absolute top-1 right-1 z-10 border border-red-500/20 animate-pulse">
+                                <AlertTriangle className="w-2.5 h-2.5" />
+                                <span>CONFLICT</span>
+                              </div>
+                            )}
+
+                            <div className="flex flex-col gap-1 h-full overflow-y-auto pr-0.5">
+                              {assignedJobs.map(job => (
+                                <div 
+                                  key={job.id}
+                                  onClick={() => onSelectJob(job)}
+                                  className={`rounded-lg p-1.5 cursor-pointer text-left border relative group/item select-none transition-all ${
+                                    job.status === 'Completed'
+                                      ? 'bg-emerald-950/30 border-emerald-500/25 hover:bg-emerald-950/50 hover:border-emerald-500/40 text-emerald-400'
+                                      : 'bg-brand-950/30 border-brand-500/25 hover:bg-brand-950/50 hover:border-brand-500/40 text-brand-400'
+                                  }`}
+                                >
+                                  <div className="text-[9px] font-bold uppercase truncate max-w-[80px]">
+                                    {job.clientName}
+                                  </div>
+                                  <div className="flex justify-between items-center text-[8px] text-slate-400 mt-0.5">
+                                    <span className="truncate max-w-[50px]">{job.origin.split(' ')[1] || 'Austin'}</span>
+                                    <span className="font-bold text-white">{formatCurrency(job.revenue || job.estimateAmount)}</span>
+                                  </div>
+
+                                  {/* Hover Tooltip */}
+                                  <div className="absolute hidden group-hover/item:block bg-slate-900/95 border border-slate-800 text-white rounded-xl p-3.5 z-45 shadow-2xl w-60 text-xs bottom-full mb-2 left-1/2 -translate-x-1/2 pointer-events-none space-y-2 backdrop-blur-md">
+                                    <div className="flex justify-between items-start border-b border-slate-800 pb-1.5">
+                                      <span className="font-extrabold text-brand-400">{job.clientName}</span>
+                                      <span className="font-black text-slate-300">{formatCurrency(job.revenue || job.estimateAmount)}</span>
+                                    </div>
+                                    <div className="space-y-1 text-[10px]">
+                                      <div className="flex gap-1 items-start text-slate-300">
+                                        <MapPin className="w-3.5 h-3.5 text-brand-500 flex-shrink-0 mt-0.5" />
+                                        <span>
+                                          {job.origin.split(',')[0]} ➜ {job.destination.split(',')[0]}
+                                        </span>
+                                      </div>
+                                      <div className="flex gap-1 items-start text-slate-300">
+                                        <Layers className="w-3.5 h-3.5 text-slate-500 flex-shrink-0 mt-0.5" />
+                                        <span className="truncate">{job.items}</span>
+                                      </div>
+                                    </div>
+                                    <div className="text-[9px] text-slate-500 border-t border-slate-800/60 pt-1 text-center font-medium">
+                                      Click block to open dispatch sheet
+                                    </div>
+                                  </div>
+
+                                </div>
+                              ))}
+                            </div>
+
+                            {/* Hover Toggle Maintenance Option */}
+                            {assignedJobs.length === 0 && (
+                              <div 
+                                onClick={() => onToggleMaintenance(truck.id, day.dateStr)}
+                                className="h-full w-full flex flex-col items-center justify-center opacity-0 group-hover/cell:opacity-100 transition-opacity duration-200 cursor-pointer"
+                                title="Click to book maintenance locks"
+                              >
+                                <Wrench className="w-3.5 h-3.5 text-slate-500 hover:text-amber-500 mb-0.5" />
+                                <span className="text-[8px] font-bold text-slate-600 hover:text-amber-500 uppercase tracking-wider">
+                                  + Service
+                                </span>
+                              </div>
+                            )}
+                          </>
                         )}
                       </div>
                     );
@@ -223,6 +264,15 @@ export default function FleetScheduler({ jobs, trucks, onSelectJob, onAssignTruc
               </div>
             ) : (
               <form onSubmit={handleQuickAssign} className="space-y-4">
+                
+                {/* Warning Banner if Truck has maintenance scheduled on selected date */}
+                {isSelectedTruckMaintenance && (
+                  <div className="bg-red-500/10 border border-red-500/20 p-2.5 rounded-lg text-[10px] text-red-400 font-semibold flex items-start gap-1.5 animate-pulse">
+                    <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
+                    <span>Warning: {selectedTruckObject.name.split(' ')[0]} is scheduled for maintenance/service on this date. Choose another vehicle or day.</span>
+                  </div>
+                )}
+
                 {/* Select Job */}
                 <div className="space-y-1.5">
                   <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">1. Select Job</label>
@@ -277,7 +327,7 @@ export default function FleetScheduler({ jobs, trucks, onSelectJob, onAssignTruc
 
                 <button
                   type="submit"
-                  disabled={!selectedUnassignedJobId || !targetTruckId}
+                  disabled={!selectedUnassignedJobId || !targetTruckId || isSelectedTruckMaintenance}
                   className="w-full bg-brand-600 hover:bg-brand-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-bold py-2 rounded-xl transition-all shadow-md shadow-brand-600/10 flex items-center justify-center gap-1.5"
                 >
                   <Plus className="w-4 h-4" />
@@ -288,8 +338,8 @@ export default function FleetScheduler({ jobs, trucks, onSelectJob, onAssignTruc
           </div>
 
           <div className="border-t border-slate-850 pt-4 text-[10px] text-slate-500 leading-relaxed">
-            <span className="font-semibold text-slate-400 block mb-0.5">Double-Booking Alerts:</span>
-            A red conflict tag will warn you if a truck is booked for more than one location on the same day.
+            <span className="font-semibold text-slate-400 block mb-0.5">Fleet Maintenance Guard:</span>
+            Dispatcher can lock trucks for maintenance service directly by clicking "+ Service" on empty grid slots.
           </div>
         </div>
 

@@ -4,35 +4,40 @@ export const initialTrucks = [
     name: 'Truck A (26ft Box Truck)',
     status: 'Busy',
     driverName: 'Marcus Vance',
-    licensePlate: 'TX-72A-980'
+    licensePlate: 'TX-72A-980',
+    maintenanceDates: []
   },
   {
     id: 'truck-b',
     name: 'Truck B (26ft Box Truck)',
     status: 'Busy',
     driverName: 'Carlos Santini',
-    licensePlate: 'TX-88B-112'
+    licensePlate: 'TX-88B-112',
+    maintenanceDates: []
   },
   {
     id: 'truck-c',
     name: 'Truck C (20ft Box Truck)',
     status: 'Available',
     driverName: 'Daveed Miller',
-    licensePlate: 'TX-15C-409'
+    licensePlate: 'TX-15C-409',
+    maintenanceDates: ['2026-07-08'] // Wed
   },
   {
     id: 'truck-d',
     name: 'Truck D (16ft Sprinter)',
     status: 'Available',
     driverName: 'Leo Kowalski',
-    licensePlate: 'TX-90D-552'
+    licensePlate: 'TX-90D-552',
+    maintenanceDates: ['2026-07-06', '2026-07-10'] // Mon, Fri
   },
   {
     id: 'truck-e',
     name: 'Truck E (26ft Box Truck)',
     status: 'Busy',
     driverName: 'Tyrone Jackson',
-    licensePlate: 'TX-33E-667'
+    licensePlate: 'TX-33E-667',
+    maintenanceDates: []
   }
 ];
 
