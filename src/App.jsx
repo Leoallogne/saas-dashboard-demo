@@ -302,6 +302,90 @@ export default function App() {
     addToast('success', 'New Inquiry Created', `Created job files for ${newJobData.clientName}`);
   };
 
+  // Seed default templates for new branches
+  const handleSeedBranchData = () => {
+    const templateJobs = [
+      {
+        id: `job-t1-${Math.random().toString(36).substring(2, 5)}`,
+        pipelineId: activePipelineId,
+        clientName: 'Diana Prince',
+        status: 'New Inquiry',
+        origin: '1004 Congress Ave, Austin, TX',
+        destination: '502 Peachtree Rd, Atlanta, GA',
+        estimateAmount: 4800,
+        revenue: 4800,
+        truckId: null,
+        date: '2026-07-09',
+        items: '4 Bedroom House, Safe, Exercise Equipment',
+        phone: '(512) 555-4902',
+        email: 'diana.p@justice.org',
+        notes: 'Needs liftgate truck. Wrap delicate items.',
+        crewSize: 4,
+        durationHours: 10,
+        crewHourlyRate: 25
+      },
+      {
+        id: `job-t2-${Math.random().toString(36).substring(2, 5)}`,
+        pipelineId: activePipelineId,
+        clientName: 'Bruce Wayne',
+        status: 'Estimate Sent',
+        origin: '1007 Mountain Dr, Gotham, NJ',
+        destination: '1202 Bristol Rd, Bristol, UK',
+        estimateAmount: 8500,
+        revenue: 8500,
+        truckId: null,
+        date: '2026-07-10',
+        items: 'Castle Relocation: Heavy sculptures, armor suits, library bookshelves',
+        phone: '(512) 555-1939',
+        email: 'bruce@waynecorp.com',
+        notes: 'COI required. Handle heavy artifacts with extreme caution.',
+        crewSize: 6,
+        durationHours: 12,
+        crewHourlyRate: 28
+      },
+      {
+        id: `job-t3-${Math.random().toString(36).substring(2, 5)}`,
+        pipelineId: activePipelineId,
+        clientName: 'Clark Kent',
+        status: 'Scheduled',
+        origin: '344 Clinton St, Metropolis, NY',
+        destination: 'Rural Route 2, Smallville, KS',
+        estimateAmount: 1200,
+        revenue: 1200,
+        truckId: 'truck-c',
+        date: '2026-07-08',
+        items: '1 Bedroom Apt, Desk, 20 book boxes',
+        phone: '(512) 555-1938',
+        email: 'ckent@dailyplanet.com',
+        notes: 'Self-packing. Assist with heavy bookshelves.',
+        crewSize: 2,
+        durationHours: 5,
+        crewHourlyRate: 25
+      },
+      {
+        id: `job-t4-${Math.random().toString(36).substring(2, 5)}`,
+        pipelineId: activePipelineId,
+        clientName: 'Barry Allen',
+        status: 'Completed',
+        origin: '502 Central Ave, Central City, MO',
+        destination: '109 Keystone St, Keystone, KS',
+        estimateAmount: 1500,
+        revenue: 1550,
+        truckId: 'truck-d',
+        date: '2026-07-06',
+        items: '2 Bedroom Apt, Treadmill, Couch, 15 boxes',
+        phone: '(512) 555-1940',
+        email: 'ballen@ccpd.gov',
+        notes: 'Fast delivery requested. Completed successfully.',
+        crewSize: 3,
+        durationHours: 4,
+        crewHourlyRate: 25
+      }
+    ];
+    setJobs(prev => [...templateJobs, ...prev]);
+    addToast('success', 'Branch Seeded', `Successfully loaded template demo files for active branch.`);
+  };
+
   // 3. Filter Master Jobs List by Active Pipeline ID (Safe checking default empty array)
   const activePipelineJobs = Array.isArray(jobs) ? jobs.filter(j => j && j.pipelineId === activePipelineId) : [];
 
@@ -324,6 +408,7 @@ export default function App() {
             onSelectJob={setSelectedJob}
             onUpdateJobStatus={handleUpdateJobStatus}
             onAddNewJob={handleAddNewJob}
+            onSeedData={handleSeedBranchData}
             formatCurrency={formatCurrency}
           />
         );

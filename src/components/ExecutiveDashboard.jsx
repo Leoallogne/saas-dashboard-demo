@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   DollarSign, 
   TrendingUp, 
@@ -20,6 +20,8 @@ import {
 import { activityLogs, weeklyRevenueData } from '../data/mockData';
 
 export default function ExecutiveDashboard({ jobs, trucks, companyName, setActiveTab, formatCurrency }) {
+  const [chartMetric, setChartMetric] = useState('revenue'); // 'revenue', 'wages', 'profit'
+
   // 1. Calculate dynamic statistics
   const completedJobs = jobs.filter(j => j.status === 'Completed');
   const scheduledJobs = jobs.filter(j => j.status === 'Scheduled');
@@ -42,6 +44,21 @@ export default function ExecutiveDashboard({ jobs, trucks, companyName, setActiv
   const avgMargin = totalRevenue > 0 ? Math.round((netProfit / totalRevenue) * 100) : 0;
 
   // Truck utilization: percentage of assigned/busy trucks
+  // 3. Dynamic Weekly Performance Data based on active branch statistics
+  const chartData = [
+    { name: 'Week 1', revenue: Math.round(totalRevenue * 0.15), wages: Math.round(totalWages * 0.15), profit: Math.round(netProfit * 0.15) },
+    { name: 'Week 2', revenue: Math.round(totalRevenue * 0.25), wages: Math.round(totalWages * 0.25), profit: Math.round(netProfit * 0.25) },
+    { name: 'Week 3', revenue: Math.round(totalRevenue * 0.20), wages: Math.round(totalWages * 0.20), profit: Math.round(netProfit * 0.20) },
+    { name: 'Week 4', revenue: Math.round(totalRevenue * 0.40), wages: Math.round(totalWages * 0.40), profit: Math.round(netProfit * 0.40) }
+  ];
+
+  const metricConfigs = {
+    revenue: { color: '#0284c7', label: 'Billings' },
+    wages: { color: '#f87171', label: 'Wages Cost' },
+    profit: { color: '#34d399', label: 'Net Profit' }
+  };
+  const activeConfig = metricConfigs[chartMetric];
+
   const busyTrucksCount = trucks.filter(t => t.status === 'Busy').length;
   const totalTrucksCount = trucks.length;
   const truckUtilization = Math.round((busyTrucksCount / totalTrucksCount) * 100);
@@ -185,27 +202,45 @@ export default function ExecutiveDashboard({ jobs, trucks, companyName, setActiv
         
         {/* Revenue Chart (Recharts) */}
         <div className="lg:col-span-2 glass-panel p-6 rounded-2xl flex flex-col justify-between space-y-4">
-          <div className="flex justify-between items-center">
+          <div className="flex flex-wrap justify-between items-center gap-3">
             <div>
-              <h4 className="text-base font-bold text-white">Revenue Performance</h4>
-              <p className="text-xs text-slate-400">Weekly sales & completed move billings</p>
+              <h4 className="text-base font-bold text-white">Performance Analytics</h4>
+              <p className="text-xs text-slate-400">Weekly operational financial distributions</p>
             </div>
-            <div className="flex items-center gap-1.5 text-xs text-slate-400 bg-slate-900/60 p-1.5 rounded-lg border border-slate-800/60">
-              <span className="w-2.5 h-2.5 rounded-full bg-brand-500 inline-block" />
-              <span className="font-semibold">Weekly Inflow</span>
+            
+            {/* Chart Metric Selector Buttons */}
+            <div className="flex bg-slate-950 p-1 rounded-lg border border-slate-850">
+              {[
+                { id: 'revenue', label: 'Revenue' },
+                { id: 'wages', label: 'Movers Wages' },
+                { id: 'profit', label: 'Net Profit' }
+              ].map(m => (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => setChartMetric(m.id)}
+                  className={`px-3 py-1.5 rounded-md text-[9px] font-extrabold uppercase tracking-wider transition-all cursor-pointer ${
+                    chartMetric === m.id
+                      ? 'bg-slate-900 text-white shadow border border-slate-800'
+                      : 'text-slate-500 hover:text-slate-350'
+                  }`}
+                >
+                  {m.label}
+                </button>
+              ))}
             </div>
           </div>
           
           <div className="h-60 w-full mt-2">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart
-                data={weeklyRevenueData}
+                data={chartData}
                 margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
               >
                 <defs>
-                  <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#0284c7" stopOpacity={0.4}/>
-                    <stop offset="95%" stopColor="#0284c7" stopOpacity={0.0}/>
+                  <linearGradient id="colorMetric" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor={activeConfig.color} stopOpacity={0.4}/>
+                    <stop offset="95%" stopColor={activeConfig.color} stopOpacity={0.0}/>
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.05)" vertical={false} />
@@ -226,21 +261,21 @@ export default function ExecutiveDashboard({ jobs, trucks, companyName, setActiv
                 <Tooltip 
                   contentStyle={{ 
                     backgroundColor: 'rgba(15, 23, 42, 0.9)', 
-                    border: '1px solid rgba(2, 132, 199, 0.3)',
+                    border: `1px solid ${activeConfig.color}44`,
                     borderRadius: '12px',
                     color: '#fff',
                     fontSize: '12px',
                     fontFamily: 'Outfit, sans-serif'
                   }}
-                  formatter={(val) => [`$${val.toLocaleString()}`, 'Revenue']}
+                  formatter={(val) => [`$${val.toLocaleString()}`, activeConfig.label]}
                 />
                 <Area 
                   type="monotone" 
-                  dataKey="revenue" 
-                  stroke="#0284c7" 
+                  dataKey={chartMetric} 
+                  stroke={activeConfig.color} 
                   strokeWidth={2.5}
                   fillOpacity={1} 
-                  fill="url(#colorRevenue)" 
+                  fill="url(#colorMetric)" 
                 />
               </AreaChart>
             </ResponsiveContainer>

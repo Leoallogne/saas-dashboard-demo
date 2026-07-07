@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import AddJobModal from './AddJobModal';
 
-export default function JobPipeline({ jobs, onSelectJob, onUpdateJobStatus, onAddNewJob, formatCurrency }) {
+export default function JobPipeline({ jobs, onSelectJob, onUpdateJobStatus, onAddNewJob, onSeedData, formatCurrency }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [minRevenue, setMinRevenue] = useState(0);
   const [draggedOverCol, setDraggedOverCol] = useState(null);
@@ -73,6 +73,63 @@ export default function JobPipeline({ jobs, onSelectJob, onUpdateJobStatus, onAd
 
     return matchesSearch && matchesMinRevenue;
   });
+
+  if (jobs.length === 0) {
+    return (
+      <div className="space-y-6 animate-fade-in">
+        {/* Pipeline Header */}
+        <div className="flex justify-between items-center">
+          <div>
+            <h2 className="text-2xl font-bold text-white tracking-tight">Move Inquiries Pipeline</h2>
+            <p className="text-slate-400 text-sm mt-0.5">Drag-and-drop or click quick actions to dispatch jobs.</p>
+          </div>
+          <button 
+            onClick={() => setIsAddModalOpen(true)}
+            className="bg-brand-600 hover:bg-brand-500 text-white font-bold px-4 py-2 text-xs rounded-xl flex items-center gap-1.5 shadow-md shadow-brand-500/25 transition-all cursor-pointer"
+          >
+            <Plus className="w-4 h-4" /> Add New Job
+          </button>
+        </div>
+
+        {/* Empty State Banner */}
+        <div className="glass-panel rounded-2xl border border-slate-800/60 p-12 flex flex-col items-center justify-center text-center py-20 space-y-5">
+          <div className="w-16 h-16 rounded-2xl bg-slate-900 border border-slate-800 flex items-center justify-center text-brand-400 shadow shadow-brand-500/10">
+            <Layers className="w-8 h-8 animate-pulse" />
+          </div>
+          
+          <div className="space-y-1.5 max-w-md">
+            <h3 className="text-lg font-bold text-white">This Pipeline Branch is Fresh & Empty</h3>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              No moving job inquiries recorded for this division yet. Create a job manually from scratch or seed default demo templates to test operations.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onSeedData}
+              className="bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all shadow-md shadow-brand-600/10 cursor-pointer"
+            >
+              Seed Sample Move Records
+            </button>
+            <button
+              onClick={() => setIsAddModalOpen(true)}
+              className="bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 text-xs font-bold px-4 py-2.5 rounded-xl transition-all cursor-pointer"
+            >
+              + Create Job Manually
+            </button>
+          </div>
+        </div>
+
+        {/* New Job Slide Modal */}
+        {isAddModalOpen && (
+          <AddJobModal 
+            onClose={() => setIsAddModalOpen(false)}
+            onSubmit={onAddNewJob}
+          />
+        )}
+      </div>
+    );
+  }
 
   const getJobsByStatus = (status) => {
     return filteredJobs.filter((job) => job.status === status);
