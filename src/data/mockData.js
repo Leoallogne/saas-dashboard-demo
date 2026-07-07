@@ -46,11 +46,14 @@ export const initialJobs = [
     estimateAmount: 1450,
     revenue: 1450,
     truckId: 'truck-a',
-    date: '2026-07-07', // Today (assuming current date is 2026-07-07 as per metadata)
+    date: '2026-07-07', // Today
     items: '3 Bedroom House, Upright Piano, 30 Boxes',
     phone: '(512) 555-0143',
     email: 'sjenkins@gmail.com',
-    notes: 'Fragile: Grandfather clock in dining room. Wrap piano with triple blankets.'
+    notes: 'Fragile: Grandfather clock in dining room. Wrap piano with triple blankets.',
+    crewSize: 3,
+    durationHours: 5,
+    crewHourlyRate: 25
   },
   {
     id: 'job-2',
@@ -65,7 +68,10 @@ export const initialJobs = [
     items: '5 Bedroom Estate, Heavy safe, Antique mirrors',
     phone: '(512) 555-0199',
     email: 'robbie.d@outlook.com',
-    notes: 'Completed successfully. Client gave $250 tip to the crew.'
+    notes: 'Completed successfully. Client gave $250 tip to the crew.',
+    crewSize: 4,
+    durationHours: 8,
+    crewHourlyRate: 25
   },
   {
     id: 'job-3',
@@ -80,7 +86,10 @@ export const initialJobs = [
     items: '1 Bedroom Apt, L-Sectional sofa, TV console',
     phone: '(512) 555-0211',
     email: 'emily.rod@gmail.com',
-    notes: 'Waiting for client approval on travel fee. Elevator booking confirmed for 9 AM.'
+    notes: 'Waiting for client approval on travel fee. Elevator booking confirmed for 9 AM.',
+    crewSize: 2,
+    durationHours: 4,
+    crewHourlyRate: 25
   },
   {
     id: 'job-4',
@@ -95,7 +104,10 @@ export const initialJobs = [
     items: '2 Bedroom Condo, Office desk, Peloton bike',
     phone: '(512) 555-0302',
     email: 'jchen_design@yahoo.com',
-    notes: 'Self-packing boxes. Need full loading and assembly service.'
+    notes: 'Self-packing boxes. Need full loading and assembly service.',
+    crewSize: 3,
+    durationHours: 6,
+    crewHourlyRate: 25
   },
   {
     id: 'job-5',
@@ -110,7 +122,10 @@ export const initialJobs = [
     items: '3 Bedroom Townhouse, Double-door fridge, Treadmill',
     phone: '(512) 555-0187',
     email: 'abrooks@realestate.com',
-    notes: 'Tight staircase at destination. Remove doors of fridge prior to carrying.'
+    notes: 'Tight staircase at destination. Remove doors of fridge prior to carrying.',
+    crewSize: 3,
+    durationHours: 6,
+    crewHourlyRate: 25
   },
   {
     id: 'job-6',
@@ -125,7 +140,10 @@ export const initialJobs = [
     items: '2 Bedroom Apt, Dining table + 6 chairs, 20 boxes',
     phone: '(512) 555-0771',
     email: 'dkim.tech@gmail.com',
-    notes: 'All items delivered in good condition. Handled by Marcus and helper.'
+    notes: 'All items delivered in good condition. Handled by Marcus and helper.',
+    crewSize: 2,
+    durationHours: 4,
+    crewHourlyRate: 25
   },
   {
     id: 'job-7',
@@ -140,7 +158,10 @@ export const initialJobs = [
     items: '4 Bedroom House, Marble dining table, Outdoor grill',
     phone: '(512) 555-0902',
     email: 'sloren@gmail.com',
-    notes: 'High value items. Custom crating required for marble dining tabletop.'
+    notes: 'High value items. Custom crating required for marble dining tabletop.',
+    crewSize: 4,
+    durationHours: 8,
+    crewHourlyRate: 25
   },
   {
     id: 'job-8',
@@ -149,13 +170,16 @@ export const initialJobs = [
     origin: '1900 Wells Branch Pkwy, Austin, TX',
     destination: '3020 Industrial Terr, Austin, TX',
     estimateAmount: 8500,
-    revenue: 9200, // Commercial job, extra boxes and shrinkwrap
+    revenue: 9200, // Commercial job
     truckId: 'truck-e',
     date: '2026-07-03',
     items: 'Office Move: 15 desks, 15 file cabinets, server rack, 80 crates',
     phone: '(512) 555-0010',
     email: 'dispatch@aureliuslogistics.com',
-    notes: 'Certificate of Insurance (COI) required by building managers at both sites.'
+    notes: 'Certificate of Insurance (COI) required by building managers at both sites.',
+    crewSize: 6,
+    durationHours: 12,
+    crewHourlyRate: 28
   },
   {
     id: 'job-9',
@@ -170,7 +194,10 @@ export const initialJobs = [
     items: 'Medical office furniture, examination table, 40 archive boxes',
     phone: '(512) 555-0812',
     email: 'eblackwell@medclinic.org',
-    notes: 'Delicate equipment. Needs special care with air-ride suspension if possible.'
+    notes: 'Delicate equipment. Needs special care with air-ride suspension if possible.',
+    crewSize: 3,
+    durationHours: 6,
+    crewHourlyRate: 25
   },
   {
     id: 'job-10',
@@ -185,7 +212,10 @@ export const initialJobs = [
     items: 'Gym Equipment: 10 spin bikes, 5 treadmills, weights rack, mats',
     phone: '(512) 555-0992',
     email: 'admin@tjhs.edu',
-    notes: 'Requires liftgate truck. School loading dock access active from 8 AM to 2 PM.'
+    notes: 'Requires liftgate truck. School loading dock access active from 8 AM to 2 PM.',
+    crewSize: 4,
+    durationHours: 10,
+    crewHourlyRate: 25
   },
   {
     id: 'job-11',
@@ -200,7 +230,10 @@ export const initialJobs = [
     items: '3 Bedroom House, Trampoline, Swing set (disassembled)',
     phone: '(512) 555-0105',
     email: 'miller.crew@gmail.com',
-    notes: 'Load swing set and trampoline first. Assist with basic disassembly.'
+    notes: 'Load swing set and trampoline first. Assist with basic disassembly.',
+    crewSize: 3,
+    durationHours: 5,
+    crewHourlyRate: 25
   },
   {
     id: 'job-12',
@@ -215,7 +248,10 @@ export const initialJobs = [
     items: 'Bookstore Relocation: 120 heavy book boxes, 10 shelving units',
     phone: '(512) 555-0321',
     email: 'books@olivertwist.com',
-    notes: 'Completed. Bookstore staff pre-packed the boxes. Shelves dismantled.'
+    notes: 'Completed. Bookstore staff pre-packed the boxes. Shelves dismantled.',
+    crewSize: 4,
+    durationHours: 9,
+    crewHourlyRate: 25
   }
 ];
 

@@ -129,8 +129,32 @@ export default function App() {
     }
   };
 
+  const handleUpdateJobProfitability = (jobId, profitabilityData) => {
+    setJobs(prevJobs => 
+      prevJobs.map(job => 
+        job.id === jobId 
+          ? { ...job, ...profitabilityData } 
+          : job
+      )
+    );
+
+    // Sync modal selection if open
+    if (selectedJob && selectedJob.id === jobId) {
+      setSelectedJob(prev => ({ ...prev, ...profitabilityData }));
+    }
+
+    addToast('info', 'Profitability Updated', `Recalculated wages & net profit for ${selectedJob?.clientName || 'job'}`);
+  };
+
   const handleAddNewJob = (newJobData) => {
-    setJobs(prev => [newJobData, ...prev]);
+    // Add default values for crew/payroll
+    const jobWithPayroll = {
+      ...newJobData,
+      crewSize: 3,
+      durationHours: 6,
+      crewHourlyRate: 25
+    };
+    setJobs(prev => [jobWithPayroll, ...prev]);
     addToast('success', 'New Inquiry Created', `Created job files for ${newJobData.clientName}`);
   };
 
@@ -205,6 +229,7 @@ export default function App() {
           onClose={() => setSelectedJob(null)}
           onUpdateJobStatus={handleUpdateJobStatus}
           onAssignTruck={handleAssignTruck}
+          onUpdateJobProfitability={handleUpdateJobProfitability}
           trucks={trucks}
           formatCurrency={formatCurrency}
         />

@@ -21,7 +21,8 @@ export default function JobDetailsModal({
   onUpdateJobStatus, 
   onAssignTruck, 
   trucks,
-  formatCurrency
+  formatCurrency,
+  onUpdateJobProfitability
 }) {
   if (!job) return null;
 
@@ -190,6 +191,96 @@ export default function JobDetailsModal({
                 </select>
               </div>
             </div>
+          </div>
+
+          {/* Job Profitability Calculator (Internal Only) */}
+          <div className="space-y-4 border-t border-slate-800/50 pt-5">
+            <h4 className="text-xs uppercase font-extrabold text-slate-400 tracking-wider flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse" />
+              Job Profitability Estimator (Internal)
+            </h4>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-900 border border-slate-800/60 p-4 rounded-xl">
+              {/* Crew Size */}
+              <div className="space-y-1">
+                <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Crew Size</label>
+                <select
+                  value={job.crewSize || 3}
+                  onChange={(e) => onUpdateJobProfitability(job.id, { 
+                    crewSize: Number(e.target.value),
+                    durationHours: job.durationHours || 6,
+                    crewHourlyRate: job.crewHourlyRate || 25
+                  })}
+                  className="w-full bg-slate-950 text-xs text-white border border-slate-800 px-2.5 py-1.5 rounded-lg focus:outline-none transition-all cursor-pointer font-medium"
+                >
+                  {[1, 2, 3, 4, 5, 6].map(n => (
+                    <option key={n} value={n}>{n} Movers</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Move Duration */}
+              <div className="space-y-1">
+                <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Est. Duration</label>
+                <select
+                  value={job.durationHours || 6}
+                  onChange={(e) => onUpdateJobProfitability(job.id, { 
+                    crewSize: job.crewSize || 3,
+                    durationHours: Number(e.target.value),
+                    crewHourlyRate: job.crewHourlyRate || 25
+                  })}
+                  className="w-full bg-slate-950 text-xs text-white border border-slate-800 px-2.5 py-1.5 rounded-lg focus:outline-none transition-all cursor-pointer font-medium"
+                >
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(h => (
+                    <option key={h} value={h}>{h} Hours</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Crew Hourly Rate */}
+              <div className="space-y-1">
+                <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Crew Rate / Hr</label>
+                <input
+                  type="number"
+                  value={job.crewHourlyRate || 25}
+                  onChange={(e) => onUpdateJobProfitability(job.id, { 
+                    crewSize: job.crewSize || 3,
+                    durationHours: job.durationHours || 6,
+                    crewHourlyRate: Number(e.target.value) || 0
+                  })}
+                  className="w-full bg-slate-950 text-xs text-white border border-slate-800 px-2.5 py-1.5 rounded-lg focus:outline-none transition-all font-medium"
+                />
+              </div>
+            </div>
+
+            {/* Calculations breakdown */}
+            {(() => {
+              const crewSize = job.crewSize || 3;
+              const durationHours = job.durationHours || 6;
+              const crewHourlyRate = job.crewHourlyRate || 25;
+              const wageCost = crewSize * durationHours * crewHourlyRate;
+              const netProfit = currentPrice - wageCost;
+              const profitMargin = Math.round((netProfit / currentPrice) * 100) || 0;
+
+              return (
+                <div className="grid grid-cols-3 gap-3 text-center text-xs border border-slate-800/40 bg-slate-950/20 p-3 rounded-lg font-semibold">
+                  <div className="space-y-0.5">
+                    <span className="text-[10px] text-slate-500 block uppercase">Est. Revenue</span>
+                    <span className="text-white">{formatCurrency(currentPrice)}</span>
+                  </div>
+                  <div className="space-y-0.5 border-x border-slate-800/30">
+                    <span className="text-[10px] text-slate-500 block uppercase">Crew Wages Cost</span>
+                    <span className="text-red-450 text-red-400">-{formatCurrency(wageCost)}</span>
+                  </div>
+                  <div className="space-y-0.5">
+                    <span className="text-[10px] text-slate-500 block uppercase">Net Profit ({profitMargin}%)</span>
+                    <span className={netProfit >= 0 ? 'text-emerald-400' : 'text-red-500'}>
+                      {formatCurrency(netProfit)}
+                    </span>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
 
         </div>

@@ -32,6 +32,14 @@ export default function ExecutiveDashboard({ jobs, trucks, companyName, setActiv
   
   const pendingEstimatesCount = jobs.filter(j => j.status === 'Estimate Sent' || j.status === 'New Inquiry').length;
 
+  // 2. Calculate operational profitability
+  const totalWages = jobs
+    .filter(j => j.status === 'Completed' || j.status === 'Scheduled')
+    .reduce((sum, j) => sum + ((j.crewSize || 3) * (j.durationHours || 6) * (j.crewHourlyRate || 25)), 0);
+
+  const netProfit = totalRevenue - totalWages;
+  const avgMargin = totalRevenue > 0 ? Math.round((netProfit / totalRevenue) * 100) : 0;
+
   // Truck utilization: percentage of assigned/busy trucks
   const busyTrucksCount = trucks.filter(t => t.status === 'Busy').length;
   const totalTrucksCount = trucks.length;
@@ -113,26 +121,27 @@ export default function ExecutiveDashboard({ jobs, trucks, companyName, setActiv
           </div>
         </div>
 
-        {/* Pending Estimates -> Redirects to Pipeline */}
+        {/* Net Profit -> Redirects to Pipeline */}
         <div 
           onClick={() => setActiveTab('pipeline')}
-          className="glass-panel-interactive p-5 rounded-2xl relative overflow-hidden group cursor-pointer border hover:border-amber-500/30"
-          title="Click to view pending estimates"
+          className="glass-panel-interactive p-5 rounded-2xl relative overflow-hidden group cursor-pointer border hover:border-indigo-500/30"
+          title="Click to view all jobs profitability"
         >
           <div className="absolute right-0 top-0 w-24 h-24 bg-brand-500/10 rounded-full blur-2xl -mr-5 -mt-5 group-hover:bg-brand-500/20 transition-all duration-300" />
           <div className="flex justify-between items-start">
-            <span className="text-slate-400 text-xs font-bold uppercase tracking-wider">Pending Estimates</span>
-            <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center border border-amber-500/20 group-hover:border-amber-400 transition-colors">
-              <Clock className="w-4.5 h-4.5 text-amber-400" />
+            <span className="text-slate-400 text-xs font-bold uppercase tracking-wider">Net Profit (Est.)</span>
+            <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20 group-hover:border-indigo-400 transition-colors">
+              <DollarSign className="w-4.5 h-4.5 text-indigo-400" />
             </div>
           </div>
           <div className="mt-4">
-            <h3 className="text-3xl font-extrabold text-white tracking-tight group-hover:text-amber-400 transition-colors">
-              {pendingEstimatesCount}
+            <h3 className="text-3xl font-extrabold text-white tracking-tight group-hover:text-indigo-400 transition-colors">
+              {formatCurrency(netProfit)}
             </h3>
             <div className="flex items-center justify-between mt-2">
               <div className="flex items-center gap-1 text-xs">
-                <span className="text-amber-400 font-semibold">{pendingEstimatesCount} estimates/inquiries</span>
+                <span className="text-indigo-400 font-semibold">{avgMargin}% margin</span>
+                <span className="text-slate-500">estimated profit</span>
               </div>
               <ChevronRight className="w-3.5 h-3.5 text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity" />
             </div>
