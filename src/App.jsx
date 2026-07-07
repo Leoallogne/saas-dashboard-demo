@@ -14,18 +14,20 @@ export default function App() {
   const [region, setRegion] = useState('US'); // 'US', 'UK', 'AU'
   const [toasts, setToasts] = useState([]);
 
-  // 1. SAFELY Initialize State from LocalStorage with fallback options
+  // 1. SAFELY Initialize State from LocalStorage with filter safeguards
   const [pipelines, setPipelines] = useState(() => {
     try {
       const saved = localStorage.getItem('moveops_pipelines');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
+        if (Array.isArray(parsed)) {
+          // Filter to ensure only valid objects with an 'id' and 'name' exist
+          const valid = parsed.filter(p => p && typeof p === 'object' && p.id && p.name);
+          if (valid.length > 0) return valid;
         }
       }
     } catch (e) {
-      console.error("Failed to parse pipelines from localStorage, falling back to default.", e);
+      console.error("Failed to parse pipelines from localStorage:", e);
     }
     return [
       { id: 'pl-1', name: 'Austin HQ (Default)' },
@@ -36,9 +38,9 @@ export default function App() {
   const [activePipelineId, setActivePipelineId] = useState(() => {
     try {
       const saved = localStorage.getItem('moveops_active_pipeline_id');
-      if (saved) return saved;
+      if (saved && typeof saved === 'string') return saved;
     } catch (e) {
-      console.error("Failed to read active pipeline ID, falling back.", e);
+      console.error("Failed to read active pipeline ID:", e);
     }
     return 'pl-1';
   });
@@ -49,13 +51,15 @@ export default function App() {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) {
-          return parsed;
+          // Filter to ensure only valid job objects with 'id', 'clientName', and 'status' exist
+          const valid = parsed.filter(j => j && typeof j === 'object' && j.id && j.clientName && j.status);
+          return valid;
         }
       }
     } catch (e) {
-      console.error("Failed to parse jobs database, resetting to initial database.", e);
+      console.error("Failed to parse jobs database:", e);
     }
-    // Tag initial mock jobs with Austin HQ branch id
+    // Tag initial mock jobs with default branch id
     return initialJobs.map(j => ({ ...j, pipelineId: 'pl-1' }));
   });
 
@@ -64,12 +68,14 @@ export default function App() {
       const saved = localStorage.getItem('moveops_trucks');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
+        if (Array.isArray(parsed)) {
+          // Filter to ensure only valid truck objects exist
+          const valid = parsed.filter(t => t && typeof t === 'object' && t.id && t.name);
+          if (valid.length > 0) return valid;
         }
       }
     } catch (e) {
-      console.error("Failed to parse trucks, resetting to initial database.", e);
+      console.error("Failed to parse trucks:", e);
     }
     return initialTrucks;
   });
@@ -77,9 +83,9 @@ export default function App() {
   const [companyName, setCompanyName] = useState(() => {
     try {
       const saved = localStorage.getItem('moveops_company_name');
-      if (saved) return saved;
+      if (saved && typeof saved === 'string') return saved;
     } catch (e) {
-      console.error("Failed to read company name.", e);
+      console.error("Failed to read company name:", e);
     }
     return 'Houston Movers';
   });
@@ -96,7 +102,7 @@ export default function App() {
         localStorage.setItem('moveops_active_pipeline_id', activePipelineId);
         localStorage.setItem('moveops_company_name', companyName);
       } catch (e) {
-        console.error("QuotaExceededError or write error on localStorage:", e);
+        console.error("Write error on localStorage:", e);
       }
     }
   }, [jobs, trucks, pipelines, activePipelineId, companyName, isLoading]);
@@ -294,7 +300,7 @@ export default function App() {
   };
 
   // 3. Filter Master Jobs List by Active Pipeline ID (Safe checking default empty array)
-  const activePipelineJobs = Array.isArray(jobs) ? jobs.filter(j => j.pipelineId === activePipelineId) : [];
+  const activePipelineJobs = Array.isArray(jobs) ? jobs.filter(j => j && j.pipelineId === activePipelineId) : [];
 
   const renderActiveView = () => {
     switch (activeTab) {

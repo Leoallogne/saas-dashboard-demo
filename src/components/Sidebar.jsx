@@ -243,6 +243,17 @@ export default function Sidebar({
             <p className="text-[11px] text-slate-400 mt-1">
               Data is saved automatically to browser local storage.
             </p>
+            <button
+              onClick={() => {
+                if (window.confirm("Reset all MoveOps Dashboard data to default factory settings? This will clear local storage and reload.")) {
+                  localStorage.clear();
+                  window.location.reload();
+                }
+              }}
+              className="mt-2.5 w-full py-1.5 text-center border border-red-500/25 bg-red-950/10 hover:bg-red-950/30 text-[9px] text-red-400 font-bold uppercase tracking-wider rounded-lg transition-all"
+            >
+              Reset System Data
+            </button>
           </div>
         ) : (
           <div className="flex justify-center">
