@@ -14,45 +14,90 @@ export default function App() {
   const [region, setRegion] = useState('US'); // 'US', 'UK', 'AU'
   const [toasts, setToasts] = useState([]);
 
-  // 1. Persistent State Initialization using localStorage
+  // 1. SAFELY Initialize State from LocalStorage with fallback options
   const [pipelines, setPipelines] = useState(() => {
-    const saved = localStorage.getItem('moveops_pipelines');
-    return saved ? JSON.parse(saved) : [
+    try {
+      const saved = localStorage.getItem('moveops_pipelines');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.error("Failed to parse pipelines from localStorage, falling back to default.", e);
+    }
+    return [
       { id: 'pl-1', name: 'Austin HQ (Default)' },
       { id: 'pl-2', name: 'Dallas Division' }
     ];
   });
   
   const [activePipelineId, setActivePipelineId] = useState(() => {
-    return localStorage.getItem('moveops_active_pipeline_id') || 'pl-1';
+    try {
+      const saved = localStorage.getItem('moveops_active_pipeline_id');
+      if (saved) return saved;
+    } catch (e) {
+      console.error("Failed to read active pipeline ID, falling back.", e);
+    }
+    return 'pl-1';
   });
 
   const [jobs, setJobs] = useState(() => {
-    const saved = localStorage.getItem('moveops_jobs');
-    if (saved) return JSON.parse(saved);
-    // map initial jobs to have default pipeline ID
+    try {
+      const saved = localStorage.getItem('moveops_jobs');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.error("Failed to parse jobs database, resetting to initial database.", e);
+    }
+    // Tag initial mock jobs with Austin HQ branch id
     return initialJobs.map(j => ({ ...j, pipelineId: 'pl-1' }));
   });
 
   const [trucks, setTrucks] = useState(() => {
-    const saved = localStorage.getItem('moveops_trucks');
-    return saved ? JSON.parse(saved) : initialTrucks;
+    try {
+      const saved = localStorage.getItem('moveops_trucks');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.error("Failed to parse trucks, resetting to initial database.", e);
+    }
+    return initialTrucks;
   });
 
   const [companyName, setCompanyName] = useState(() => {
-    return localStorage.getItem('moveops_company_name') || 'Houston Movers';
+    try {
+      const saved = localStorage.getItem('moveops_company_name');
+      if (saved) return saved;
+    } catch (e) {
+      console.error("Failed to read company name.", e);
+    }
+    return 'Houston Movers';
   });
 
   const [selectedJob, setSelectedJob] = useState(null);
 
-  // 2. Synchronize State changes with LocalStorage
+  // 2. Synchronize States safely in useEffect
   useEffect(() => {
     if (!isLoading) {
-      localStorage.setItem('moveops_jobs', JSON.stringify(jobs));
-      localStorage.setItem('moveops_trucks', JSON.stringify(trucks));
-      localStorage.setItem('moveops_pipelines', JSON.stringify(pipelines));
-      localStorage.setItem('moveops_active_pipeline_id', activePipelineId);
-      localStorage.setItem('moveops_company_name', companyName);
+      try {
+        localStorage.setItem('moveops_jobs', JSON.stringify(jobs));
+        localStorage.setItem('moveops_trucks', JSON.stringify(trucks));
+        localStorage.setItem('moveops_pipelines', JSON.stringify(pipelines));
+        localStorage.setItem('moveops_active_pipeline_id', activePipelineId);
+        localStorage.setItem('moveops_company_name', companyName);
+      } catch (e) {
+        console.error("QuotaExceededError or write error on localStorage:", e);
+      }
     }
   }, [jobs, trucks, pipelines, activePipelineId, companyName, isLoading]);
 
@@ -76,24 +121,28 @@ export default function App() {
 
   // Currency Formatter depending on region selection
   const formatCurrency = (amount) => {
-    if (region === 'UK') {
-      return new Intl.NumberFormat('en-GB', {
-        style: 'currency',
-        currency: 'GBP',
-        maximumFractionDigits: 0
-      }).format(amount);
-    } else if (region === 'AU') {
-      return new Intl.NumberFormat('en-AU', {
-        style: 'currency',
-        currency: 'AUD',
-        maximumFractionDigits: 0
-      }).format(amount);
-    } else {
-      return new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'USD',
-        maximumFractionDigits: 0
-      }).format(amount);
+    try {
+      if (region === 'UK') {
+        return new Intl.NumberFormat('en-GB', {
+          style: 'currency',
+          currency: 'GBP',
+          maximumFractionDigits: 0
+        }).format(amount);
+      } else if (region === 'AU') {
+        return new Intl.NumberFormat('en-AU', {
+          style: 'currency',
+          currency: 'AUD',
+          maximumFractionDigits: 0
+        }).format(amount);
+      } else {
+        return new Intl.NumberFormat('en-US', {
+          style: 'currency',
+          currency: 'USD',
+          maximumFractionDigits: 0
+        }).format(amount);
+      }
+    } catch (e) {
+      return `$${amount}`;
     }
   };
 
@@ -244,8 +293,8 @@ export default function App() {
     addToast('success', 'New Inquiry Created', `Created job files for ${newJobData.clientName}`);
   };
 
-  // 3. Filter Master Jobs List by Active Pipeline ID
-  const activePipelineJobs = jobs.filter(j => j.pipelineId === activePipelineId);
+  // 3. Filter Master Jobs List by Active Pipeline ID (Safe checking default empty array)
+  const activePipelineJobs = Array.isArray(jobs) ? jobs.filter(j => j.pipelineId === activePipelineId) : [];
 
   const renderActiveView = () => {
     switch (activeTab) {
