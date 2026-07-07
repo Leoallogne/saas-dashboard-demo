@@ -1,0 +1,187 @@
+import React, { useState, useEffect } from 'react';
+import Sidebar from './components/Sidebar';
+import SkeletonLoader from './components/SkeletonLoader';
+import ExecutiveDashboard from './components/ExecutiveDashboard';
+import JobPipeline from './components/JobPipeline';
+import FleetScheduler from './components/FleetScheduler';
+import JobDetailsModal from './components/JobDetailsModal';
+import ToastContainer from './components/ToastNotification';
+import { initialJobs, initialTrucks } from './data/mockData';
+
+export default function App() {
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [jobs, setJobs] = useState(initialJobs);
+  const [trucks, setTrucks] = useState(initialTrucks);
+  const [companyName, setCompanyName] = useState('Houston Movers');
+  const [selectedJob, setSelectedJob] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  
+  // Toast notifications state
+  const [toasts, setToasts] = useState([]);
+
+  // Toast helpers
+  const addToast = (type, title, message) => {
+    const id = Math.random().toString(36).substring(2, 9);
+    setToasts(prev => [...prev, { id, type, title, message }]);
+  };
+
+  const removeToast = (id) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  };
+
+  // Simulate loading state for 1.2s to present professional skeleton load
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Update a job's kanban stage/status
+  const handleUpdateJobStatus = (jobId, newStatus) => {
+    let jobName = '';
+    setJobs(prevJobs => 
+      prevJobs.map(job => {
+        if (job.id === jobId) {
+          jobName = job.clientName;
+          const updatedJob = { ...job, status: newStatus };
+          // If status changes to New Inquiry or Estimate Sent, free up the truck
+          if (newStatus === 'New Inquiry' || newStatus === 'Estimate Sent') {
+            updatedJob.truckId = null;
+          }
+          return updatedJob;
+        }
+        return job;
+      })
+    );
+
+    // Trigger toast notification
+    if (jobName) {
+      addToast('success', 'Status Updated', `${jobName} moved to "${newStatus}"`);
+    }
+
+    // If modal is currently open and viewing this job, sync details
+    if (selectedJob && selectedJob.id === jobId) {
+      setSelectedJob(prev => ({
+        ...prev,
+        status: newStatus,
+        truckId: (newStatus === 'New Inquiry' || newStatus === 'Estimate Sent') ? null : prev.truckId
+      }));
+    }
+  };
+
+  // Assign a truck to a job
+  const handleAssignTruck = (jobId, truckId) => {
+    let clientName = '';
+    let truckName = 'Unassigned';
+
+    setJobs(prevJobs => 
+      prevJobs.map(job => {
+        if (job.id === jobId) {
+          clientName = job.clientName;
+          return { ...job, truckId };
+        }
+        return job;
+      })
+    );
+
+    // Update trucks status if applicable
+    if (truckId) {
+      const selectedTruck = trucks.find(t => t.id === truckId);
+      if (selectedTruck) {
+        truckName = selectedTruck.name.split(' ')[0] + ' ' + selectedTruck.name.split(' ')[1];
+      }
+    }
+
+    // Trigger toast notification
+    if (clientName) {
+      addToast('info', 'Fleet Assigned', `${clientName} has been assigned to ${truckName}`);
+    }
+
+    // Sync modal selection
+    if (selectedJob && selectedJob.id === jobId) {
+      setSelectedJob(prev => ({ ...prev, truckId }));
+    }
+  };
+
+  const handleAddNewJob = (newJobData) => {
+    setJobs(prev => [newJobData, ...prev]);
+    addToast('success', 'New Inquiry Created', `Created job files for ${newJobData.clientName}`);
+  };
+
+  const renderActiveView = () => {
+    switch (activeTab) {
+      case 'dashboard':
+        return (
+          <ExecutiveDashboard 
+            jobs={jobs} 
+            trucks={trucks} 
+            companyName={companyName}
+            setActiveTab={setActiveTab}
+          />
+        );
+      case 'pipeline':
+        return (
+          <JobPipeline 
+            jobs={jobs} 
+            onSelectJob={setSelectedJob}
+            onUpdateJobStatus={handleUpdateJobStatus}
+            onAddNewJob={handleAddNewJob}
+          />
+        );
+      case 'scheduler':
+        return (
+          <FleetScheduler 
+            jobs={jobs} 
+            trucks={trucks} 
+            onSelectJob={setSelectedJob} 
+            onAssignTruck={handleAssignTruck}
+            onUpdateJobStatus={handleUpdateJobStatus}
+          />
+        );
+      default:
+        return null;
+    }
+  };
+
+  if (isLoading) {
+    return <SkeletonLoader />;
+  }
+
+  return (
+    <div className="flex h-screen w-screen bg-slate-950 text-slate-100 overflow-hidden relative">
+      {/* Sidebar Navigation */}
+      <Sidebar 
+        activeTab={activeTab} 
+        setActiveTab={setActiveTab} 
+        companyName={companyName} 
+        setCompanyName={setCompanyName}
+        isCollapsed={sidebarCollapsed}
+        setIsCollapsed={setSidebarCollapsed}
+      />
+
+      {/* Main Panel Content */}
+      <main className="flex-1 flex flex-col p-8 overflow-y-auto relative z-0">
+        {/* Active Component Tab View */}
+        <div className="flex-1 max-w-7xl mx-auto w-full">
+          {renderActiveView()}
+        </div>
+      </main>
+
+      {/* Shared Job Details Modal overlay */}
+      {selectedJob && (
+        <JobDetailsModal
+          job={selectedJob}
+          onClose={() => setSelectedJob(null)}
+          onUpdateJobStatus={handleUpdateJobStatus}
+          onAssignTruck={handleAssignTruck}
+          trucks={trucks}
+        />
+      )}
+
+      {/* Global Stacked Toast Container */}
+      <ToastContainer toasts={toasts} removeToast={removeToast} />
+    </div>
+  );
+}

@@ -1,0 +1,299 @@
+import React, { useState } from 'react';
+import { 
+  Truck, 
+  Calendar, 
+  User, 
+  ChevronLeft, 
+  ChevronRight, 
+  AlertCircle,
+  PlusCircle,
+  Plus,
+  AlertTriangle,
+  MapPin,
+  Layers,
+  Info
+} from 'lucide-react';
+
+export default function FleetScheduler({ jobs, trucks, onSelectJob, onAssignTruck, onUpdateJobStatus }) {
+  // Static dates corresponding to the mockData dates (July 6, 2026 to July 12, 2026)
+  const weekDays = [
+    { name: 'Mon', dateStr: '2026-07-06', label: 'July 6' },
+    { name: 'Tue', dateStr: '2026-07-07', label: 'July 7 (Today)' },
+    { name: 'Wed', dateStr: '2026-07-08', label: 'July 8' },
+    { name: 'Thu', dateStr: '2026-07-09', label: 'July 9' },
+    { name: 'Fri', dateStr: '2026-07-10', label: 'July 10' },
+    { name: 'Sat', dateStr: '2026-07-11', label: 'July 11' },
+    { name: 'Sun', dateStr: '2026-07-12', label: 'July 12' }
+  ];
+
+  const [selectedUnassignedJobId, setSelectedUnassignedJobId] = useState('');
+  const [targetTruckId, setTargetTruckId] = useState('');
+  const [targetDate, setTargetDate] = useState('2026-07-07');
+
+  // Filter unscheduled jobs (Scheduled or Estimate Sent but no truckId assigned yet)
+  const unscheduledJobs = jobs.filter(j => 
+    (j.status === 'Scheduled' || j.status === 'Estimate Sent') && !j.truckId
+  );
+
+  // Find all jobs assigned to a specific truck on a specific day
+  const getJobsForCell = (truckId, dateStr) => {
+    return jobs.filter(j => j.truckId === truckId && j.date === dateStr);
+  };
+
+  const handleQuickAssign = (e) => {
+    e.preventDefault();
+    if (!selectedUnassignedJobId || !targetTruckId) return;
+
+    // Find the job
+    const job = jobs.find(j => j.id === selectedUnassignedJobId);
+    if (!job) return;
+
+    // Assign truck and date
+    onAssignTruck(selectedUnassignedJobId, targetTruckId);
+    
+    // Update date inside jobs array directly (state will capture update)
+    job.date = targetDate;
+    if (job.status === 'Estimate Sent') {
+      onUpdateJobStatus(selectedUnassignedJobId, 'Scheduled');
+    }
+
+    // Reset fields
+    setSelectedUnassignedJobId('');
+    setTargetTruckId('');
+  };
+
+  return (
+    <div className="space-y-6 animate-fade-in">
+      {/* Header */}
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-2xl font-bold text-white tracking-tight">Fleet Scheduler</h2>
+          <p className="text-slate-400 text-sm mt-0.5">
+            Manage weekly schedules. Warnings will highlight double-booking conflicts.
+          </p>
+        </div>
+        <div className="flex items-center gap-2 text-xs font-semibold text-slate-400 bg-slate-900 border border-slate-800 p-2 rounded-xl">
+          <Calendar className="w-4 h-4 text-brand-400" />
+          <span>July 6 – July 12, 2026</span>
+        </div>
+      </div>
+
+      {/* Main Grid Layout */}
+      <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
+        
+        {/* Scheduler Grid */}
+        <div className="xl:col-span-3 glass-panel rounded-2xl border border-slate-800/60 p-5 overflow-x-auto relative">
+          <div className="min-w-[900px]">
+            {/* Grid Header: Days of the week */}
+            <div className="grid grid-cols-8 gap-3 pb-4 border-b border-slate-800/40 text-center">
+              <div className="text-left font-bold text-xs text-slate-400 uppercase tracking-wider pl-2 flex items-center">
+                Truck / Fleet
+              </div>
+              {weekDays.map(day => (
+                <div key={day.dateStr} className="space-y-0.5">
+                  <div className={`text-xs font-bold ${day.name === 'Tue' ? 'text-brand-400 font-extrabold' : 'text-slate-300'}`}>
+                    {day.name}
+                  </div>
+                  <div className="text-[10px] text-slate-500 font-semibold">
+                    {day.label}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Grid Body: Trucks & Assigned Jobs */}
+            <div className="divide-y divide-slate-800/30 mt-4 space-y-4">
+              {trucks.map(truck => (
+                <div key={truck.id} className="grid grid-cols-8 gap-3 pt-4 items-center">
+                  
+                  {/* Truck Info Cell */}
+                  <div className="flex items-start gap-2.5 pl-1 min-w-0">
+                    <div className="w-8 h-8 rounded-lg bg-slate-900 border border-slate-800/80 flex items-center justify-center text-slate-400 flex-shrink-0">
+                      <Truck className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <h4 className="text-xs font-extrabold text-white truncate leading-none">
+                        {truck.name.split(' ')[0] + ' ' + truck.name.split(' ')[1]}
+                      </h4>
+                      <p className="text-[10px] text-slate-500 truncate flex items-center gap-0.5 mt-1">
+                        <User className="w-2.5 h-2.5" />
+                        {truck.driverName.split(' ')[0]}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Days Cells */}
+                  {weekDays.map(day => {
+                    const assignedJobs = getJobsForCell(truck.id, day.dateStr);
+                    const isConflict = assignedJobs.length > 1;
+
+                    return (
+                      <div 
+                        key={day.dateStr} 
+                        className={`h-22 rounded-xl border p-2 flex flex-col gap-1 transition-all relative group/cell ${
+                          isConflict 
+                            ? 'bg-red-950/20 border-red-500/40 ring-1 ring-red-500/20' 
+                            : 'bg-slate-950/40 border-slate-900/50 hover:border-slate-800'
+                        }`}
+                      >
+                        {/* Conflict Warning Header */}
+                        {isConflict && (
+                          <div className="flex items-center gap-1 text-red-400 font-extrabold text-[8px] tracking-wide bg-red-500/10 px-1 rounded absolute top-1 right-1 z-10 border border-red-500/20 animate-pulse">
+                            <AlertTriangle className="w-2.5 h-2.5" />
+                            <span>CONFLICT</span>
+                          </div>
+                        )}
+
+                        <div className="flex flex-col gap-1 h-full overflow-y-auto pr-0.5">
+                          {assignedJobs.map(job => (
+                            <div 
+                              key={job.id}
+                              onClick={() => onSelectJob(job)}
+                              className={`rounded-lg p-1.5 cursor-pointer text-left border relative group/item select-none transition-all ${
+                                job.status === 'Completed'
+                                  ? 'bg-emerald-950/30 border-emerald-500/25 hover:bg-emerald-950/50 hover:border-emerald-500/40 text-emerald-400'
+                                  : 'bg-brand-950/30 border-brand-500/25 hover:bg-brand-950/50 hover:border-brand-500/40 text-brand-400'
+                              }`}
+                            >
+                              <div className="text-[9px] font-bold uppercase truncate max-w-[80px]">
+                                {job.clientName}
+                              </div>
+                              <div className="flex justify-between items-center text-[8px] text-slate-400 mt-0.5">
+                                <span className="truncate max-w-[50px]">{job.origin.split(' ')[1] || 'Austin'}</span>
+                                <span className="font-bold text-white">${job.revenue || job.estimateAmount}</span>
+                              </div>
+
+                              {/* Hover Tooltip - Positioned relatively to avoid cuts */}
+                              <div className="absolute hidden group-hover/item:block bg-slate-900/95 border border-slate-800 text-white rounded-xl p-3.5 z-40 shadow-2xl w-60 text-xs bottom-full mb-2 left-1/2 -translate-x-1/2 pointer-events-none space-y-2 backdrop-blur-md">
+                                <div className="flex justify-between items-start border-b border-slate-800 pb-1.5">
+                                  <span className="font-extrabold text-brand-400">{job.clientName}</span>
+                                  <span className="font-black text-slate-300">${job.revenue || job.estimateAmount}</span>
+                                </div>
+                                <div className="space-y-1 text-[10px]">
+                                  <div className="flex gap-1 items-start text-slate-300">
+                                    <MapPin className="w-3.5 h-3.5 text-brand-500 flex-shrink-0 mt-0.5" />
+                                    <span>
+                                      {job.origin.split(',')[0]} ➜ {job.destination.split(',')[0]}
+                                    </span>
+                                  </div>
+                                  <div className="flex gap-1 items-start text-slate-300">
+                                    <Layers className="w-3.5 h-3.5 text-slate-500 flex-shrink-0 mt-0.5" />
+                                    <span className="truncate">{job.items}</span>
+                                  </div>
+                                </div>
+                                <div className="text-[9px] text-slate-500 border-t border-slate-800/60 pt-1 text-center font-medium">
+                                  Click block to open dispatch sheet
+                                </div>
+                              </div>
+
+                            </div>
+                          ))}
+                        </div>
+
+                        {assignedJobs.length === 0 && (
+                          <div className="h-full w-full flex items-center justify-center opacity-0 group-hover/cell:opacity-100 transition-opacity">
+                            <span className="text-[8px] font-bold text-slate-700 uppercase tracking-wider">
+                              Unscheduled
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+
+          </div>
+        </div>
+
+        {/* Quick Assign Form / Unassigned Jobs Sidepanel */}
+        <div className="glass-panel rounded-2xl border border-slate-800/60 p-5 flex flex-col justify-between space-y-6">
+          <div className="space-y-4">
+            <div>
+              <h4 className="text-sm font-bold text-white">Quick Dispatcher</h4>
+              <p className="text-xs text-slate-400">Assign unscheduled jobs to fleet</p>
+            </div>
+
+            {unscheduledJobs.length === 0 ? (
+              <div className="bg-slate-950/40 p-4 rounded-xl border border-slate-800/40 flex flex-col items-center justify-center text-center py-8">
+                <AlertCircle className="w-8 h-8 text-slate-600 mb-2" />
+                <p className="text-xs text-slate-500 font-semibold">No unscheduled jobs</p>
+                <p className="text-[10px] text-slate-600 mt-1">Move jobs to 'Scheduled' or 'Estimate Sent' to list them here.</p>
+              </div>
+            ) : (
+              <form onSubmit={handleQuickAssign} className="space-y-4">
+                {/* Select Job */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">1. Select Job</label>
+                  <select
+                    value={selectedUnassignedJobId}
+                    onChange={(e) => setSelectedUnassignedJobId(e.target.value)}
+                    className="w-full bg-slate-950 text-xs text-white border border-slate-800 rounded-lg p-2 focus:outline-none focus:border-brand-500/50 transition-all cursor-pointer font-medium"
+                    required
+                  >
+                    <option value="">-- Choose Job --</option>
+                    {unscheduledJobs.map(job => (
+                      <option key={job.id} value={job.id}>
+                        {job.clientName} (${job.estimateAmount})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Select Truck */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">2. Select Truck</label>
+                  <select
+                    value={targetTruckId}
+                    onChange={(e) => setTargetTruckId(e.target.value)}
+                    className="w-full bg-slate-950 text-xs text-white border border-slate-800 rounded-lg p-2 focus:outline-none focus:border-brand-500/50 transition-all cursor-pointer font-medium"
+                    required
+                  >
+                    <option value="">-- Choose Truck --</option>
+                    {trucks.map(truck => (
+                      <option key={truck.id} value={truck.id}>
+                        {truck.name.split(' ')[0] + ' ' + truck.name.split(' ')[1]} ({truck.driverName})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Select Day */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">3. Select Date</label>
+                  <select
+                    value={targetDate}
+                    onChange={(e) => setTargetDate(e.target.value)}
+                    className="w-full bg-slate-950 text-xs text-white border border-slate-800 rounded-lg p-2 focus:outline-none focus:border-brand-500/50 transition-all cursor-pointer font-medium"
+                  >
+                    {weekDays.map(day => (
+                      <option key={day.dateStr} value={day.dateStr}>
+                        {day.name} ({day.label})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={!selectedUnassignedJobId || !targetTruckId}
+                  className="w-full bg-brand-600 hover:bg-brand-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-bold py-2 rounded-xl transition-all shadow-md shadow-brand-600/10 flex items-center justify-center gap-1.5"
+                >
+                  <Plus className="w-4 h-4" />
+                  Assign & Dispatch
+                </button>
+              </form>
+            )}
+          </div>
+
+          <div className="border-t border-slate-850 pt-4 text-[10px] text-slate-500 leading-relaxed">
+            <span className="font-semibold text-slate-400 block mb-0.5">Double-Booking Alerts:</span>
+            A red conflict tag will warn you if a truck is booked for more than one location on the same day.
+          </div>
+        </div>
+
+      </div>
+    </div>
+  );
+}
