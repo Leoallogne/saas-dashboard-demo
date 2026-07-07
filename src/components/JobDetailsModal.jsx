@@ -20,7 +20,8 @@ export default function JobDetailsModal({
   onClose, 
   onUpdateJobStatus, 
   onAssignTruck, 
-  trucks 
+  trucks,
+  formatCurrency
 }) {
   if (!job) return null;
 
@@ -102,7 +103,7 @@ export default function JobDetailsModal({
               <div className="flex justify-between items-center">
                 <span className="text-slate-400 text-xs font-medium">Estimated Pricing</span>
                 <span className="text-xl font-black text-brand-400">
-                  {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(currentPrice)}
+                  {formatCurrency(currentPrice)}
                 </span>
               </div>
               <div className="flex justify-between items-center">

@@ -16,6 +16,7 @@ export default function App() {
   const [selectedJob, setSelectedJob] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [region, setRegion] = useState('US'); // 'US', 'UK', 'AU'
   
   // Toast notifications state
   const [toasts, setToasts] = useState([]);
@@ -28,6 +29,29 @@ export default function App() {
 
   const removeToast = (id) => {
     setToasts(prev => prev.filter(t => t.id !== id));
+  };
+
+  // Currency Formatter depending on region selection
+  const formatCurrency = (amount) => {
+    if (region === 'UK') {
+      return new Intl.NumberFormat('en-GB', {
+        style: 'currency',
+        currency: 'GBP',
+        maximumFractionDigits: 0
+      }).format(amount);
+    } else if (region === 'AU') {
+      return new Intl.NumberFormat('en-AU', {
+        style: 'currency',
+        currency: 'AUD',
+        maximumFractionDigits: 0
+      }).format(amount);
+    } else {
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD',
+        maximumFractionDigits: 0
+      }).format(amount);
+    }
   };
 
   // Simulate loading state for 1.2s to present professional skeleton load
@@ -119,6 +143,7 @@ export default function App() {
             trucks={trucks} 
             companyName={companyName}
             setActiveTab={setActiveTab}
+            formatCurrency={formatCurrency}
           />
         );
       case 'pipeline':
@@ -128,6 +153,7 @@ export default function App() {
             onSelectJob={setSelectedJob}
             onUpdateJobStatus={handleUpdateJobStatus}
             onAddNewJob={handleAddNewJob}
+            formatCurrency={formatCurrency}
           />
         );
       case 'scheduler':
@@ -138,6 +164,7 @@ export default function App() {
             onSelectJob={setSelectedJob} 
             onAssignTruck={handleAssignTruck}
             onUpdateJobStatus={handleUpdateJobStatus}
+            formatCurrency={formatCurrency}
           />
         );
       default:
@@ -159,6 +186,8 @@ export default function App() {
         setCompanyName={setCompanyName}
         isCollapsed={sidebarCollapsed}
         setIsCollapsed={setSidebarCollapsed}
+        region={region}
+        setRegion={setRegion}
       />
 
       {/* Main Panel Content */}
@@ -177,6 +206,7 @@ export default function App() {
           onUpdateJobStatus={handleUpdateJobStatus}
           onAssignTruck={handleAssignTruck}
           trucks={trucks}
+          formatCurrency={formatCurrency}
         />
       )}
 

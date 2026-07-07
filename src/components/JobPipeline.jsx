@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import AddJobModal from './AddJobModal';
 
-export default function JobPipeline({ jobs, onSelectJob, onUpdateJobStatus, onAddNewJob }) {
+export default function JobPipeline({ jobs, onSelectJob, onUpdateJobStatus, onAddNewJob, formatCurrency }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [minRevenue, setMinRevenue] = useState(0);
   const [draggedOverCol, setDraggedOverCol] = useState(null);
@@ -76,14 +76,6 @@ export default function JobPipeline({ jobs, onSelectJob, onUpdateJobStatus, onAd
 
   const getJobsByStatus = (status) => {
     return filteredJobs.filter((job) => job.status === status);
-  };
-
-  const formatCurrency = (val) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      maximumFractionDigits: 0
-    }).format(val);
   };
 
   // Drag Handlers

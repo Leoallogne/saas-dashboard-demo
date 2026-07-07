@@ -18,7 +18,9 @@ export default function Sidebar({
   companyName, 
   setCompanyName,
   isCollapsed,
-  setIsCollapsed
+  setIsCollapsed,
+  region,
+  setRegion
 }) {
   const [isEditingBrand, setIsEditingBrand] = useState(false);
   const [tempBrandName, setTempBrandName] = useState(companyName);
@@ -59,7 +61,7 @@ export default function Sidebar({
 
           {/* Quick Client Configurator */}
           {!isCollapsed ? (
-            <div className="mt-2 bg-slate-900/40 p-2.5 rounded-lg border border-slate-800/40">
+            <div className="mt-1 bg-slate-900/40 p-2.5 rounded-lg border border-slate-800/40 space-y-2">
               {isEditingBrand ? (
                 <div className="space-y-2">
                   <label className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider block">Company Name</label>
@@ -101,8 +103,48 @@ export default function Sidebar({
               )}
             </div>
           ) : (
-            <div className="h-[34px] flex items-center justify-center text-slate-500" title={companyName}>
+            <div className="h-[34px] flex items-center justify-center text-slate-500 hover:text-slate-300 transition-colors cursor-help" title={`Managing: ${companyName}`}>
               <Building className="w-4 h-4" />
+            </div>
+          )}
+
+          {/* Regional Switcher */}
+          {!isCollapsed ? (
+            <div className="bg-slate-900/40 p-2.5 rounded-lg border border-slate-800/40 space-y-1.5">
+              <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Regional Format</span>
+              <div className="flex gap-1 bg-slate-950 p-1 rounded-md border border-slate-800/80">
+                {[
+                  { id: 'US', label: '🇺🇸 US' },
+                  { id: 'UK', label: '🇬🇧 UK' },
+                  { id: 'AU', label: '🇦🇺 AU' }
+                ].map(opt => (
+                  <button
+                    key={opt.id}
+                    onClick={() => setRegion(opt.id)}
+                    className={`flex-1 text-[10px] font-bold py-1.5 rounded text-center transition-all ${
+                      region === opt.id 
+                        ? 'bg-brand-600 text-white shadow-sm shadow-brand-500/10' 
+                        : 'text-slate-400 hover:text-slate-200'
+                    }`}
+                  >
+                    {opt.label.split(' ')[1]}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div 
+              className="flex justify-center p-2 rounded-lg bg-slate-900/20 border border-slate-800/40 cursor-pointer hover:bg-slate-900/60 transition-all select-none" 
+              title={`Active Currency Format: ${region}`}
+              onClick={() => {
+                // cycle region toggle on click in collapsed state
+                const nextRegion = region === 'US' ? 'UK' : region === 'UK' ? 'AU' : 'US';
+                setRegion(nextRegion);
+              }}
+            >
+              <span className="text-sm font-semibold">
+                {region === 'US' ? '🇺🇸' : region === 'UK' ? '🇬🇧' : '🇦🇺'}
+              </span>
             </div>
           )}
         </div>
@@ -142,10 +184,10 @@ export default function Sidebar({
           <div className="bg-gradient-to-b from-slate-900/50 to-slate-950/20 border border-slate-800/40 rounded-xl p-3.5">
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-              <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Demo Environment</span>
+              <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Demo Active</span>
             </div>
             <p className="text-[11px] text-slate-400 mt-1">
-              Fully interactive flow. Drag cards to move pipeline stages.
+              Select UK/AU tabs to dynamically override currency formats.
             </p>
           </div>
         ) : (

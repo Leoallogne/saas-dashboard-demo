@@ -18,7 +18,7 @@ import {
 } from 'recharts';
 import { activityLogs, weeklyRevenueData } from '../data/mockData';
 
-export default function ExecutiveDashboard({ jobs, trucks, companyName, setActiveTab }) {
+export default function ExecutiveDashboard({ jobs, trucks, companyName, setActiveTab, formatCurrency }) {
   // 1. Calculate dynamic statistics
   const completedJobs = jobs.filter(j => j.status === 'Completed');
   const scheduledJobs = jobs.filter(j => j.status === 'Scheduled');
@@ -36,15 +36,6 @@ export default function ExecutiveDashboard({ jobs, trucks, companyName, setActiv
   const busyTrucksCount = trucks.filter(t => t.status === 'Busy').length;
   const totalTrucksCount = trucks.length;
   const truckUtilization = Math.round((busyTrucksCount / totalTrucksCount) * 100);
-
-  // Formatting currency
-  const formatCurrency = (val) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      maximumFractionDigits: 0
-    }).format(val);
-  };
 
   return (
     <div className="space-y-7 animate-fade-in">

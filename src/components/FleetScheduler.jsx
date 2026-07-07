@@ -14,7 +14,7 @@ import {
   Info
 } from 'lucide-react';
 
-export default function FleetScheduler({ jobs, trucks, onSelectJob, onAssignTruck, onUpdateJobStatus }) {
+export default function FleetScheduler({ jobs, trucks, onSelectJob, onAssignTruck, onUpdateJobStatus, formatCurrency }) {
   // Static dates corresponding to the mockData dates (July 6, 2026 to July 12, 2026)
   const weekDays = [
     { name: 'Mon', dateStr: '2026-07-06', label: 'July 6' },
@@ -160,14 +160,14 @@ export default function FleetScheduler({ jobs, trucks, onSelectJob, onAssignTruc
                               </div>
                               <div className="flex justify-between items-center text-[8px] text-slate-400 mt-0.5">
                                 <span className="truncate max-w-[50px]">{job.origin.split(' ')[1] || 'Austin'}</span>
-                                <span className="font-bold text-white">${job.revenue || job.estimateAmount}</span>
+                                <span className="font-bold text-white">{formatCurrency(job.revenue || job.estimateAmount)}</span>
                               </div>
 
                               {/* Hover Tooltip - Positioned relatively to avoid cuts */}
                               <div className="absolute hidden group-hover/item:block bg-slate-900/95 border border-slate-800 text-white rounded-xl p-3.5 z-40 shadow-2xl w-60 text-xs bottom-full mb-2 left-1/2 -translate-x-1/2 pointer-events-none space-y-2 backdrop-blur-md">
                                 <div className="flex justify-between items-start border-b border-slate-800 pb-1.5">
                                   <span className="font-extrabold text-brand-400">{job.clientName}</span>
-                                  <span className="font-black text-slate-300">${job.revenue || job.estimateAmount}</span>
+                                  <span className="font-black text-slate-300">{formatCurrency(job.revenue || job.estimateAmount)}</span>
                                 </div>
                                 <div className="space-y-1 text-[10px]">
                                   <div className="flex gap-1 items-start text-slate-300">
@@ -235,7 +235,7 @@ export default function FleetScheduler({ jobs, trucks, onSelectJob, onAssignTruc
                     <option value="">-- Choose Job --</option>
                     {unscheduledJobs.map(job => (
                       <option key={job.id} value={job.id}>
-                        {job.clientName} (${job.estimateAmount})
+                        {job.clientName} ({formatCurrency(job.estimateAmount)})
                       </option>
                     ))}
                   </select>
