@@ -11,7 +11,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Plus,
-  Layers
+  Layers,
+  User
 } from 'lucide-react';
 
 export default function Sidebar({ 
