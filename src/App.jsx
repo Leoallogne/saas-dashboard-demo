@@ -13,6 +13,7 @@ export default function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [region, setRegion] = useState('US'); // 'US', 'UK', 'AU'
   const [toasts, setToasts] = useState([]);
+  const [activeTab, setActiveTab] = useState('dashboard');
 
   // 1. SAFELY Initialize State from LocalStorage with filter safeguards
   const [pipelines, setPipelines] = useState(() => {

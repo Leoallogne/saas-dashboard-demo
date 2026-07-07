@@ -5,7 +5,8 @@ import {
   Clock, 
   Truck,
   ArrowUpRight,
-  ChevronRight
+  ChevronRight,
+  User
 } from 'lucide-react';
 import { 
   AreaChart, 
@@ -271,6 +272,120 @@ export default function ExecutiveDashboard({ jobs, trucks, companyName, setActiv
         </div>
 
       </div>
+
+      {/* Detailed Operations Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Active Fleet Panel */}
+        <div className="glass-panel p-6 rounded-2xl space-y-4">
+          <div>
+            <h4 className="text-base font-bold text-white flex items-center gap-2">
+              <Truck className="w-5 h-5 text-brand-400" />
+              Fleet Status & Dispatch Ledger
+            </h4>
+            <p className="text-xs text-slate-400">Live operational status of box trucks and sprinter vans</p>
+          </div>
+          
+          <div className="divide-y divide-slate-800/40 space-y-3">
+            {trucks.map(truck => {
+              // Find if this truck has jobs today (2026-07-07)
+              const todayJobs = jobs.filter(j => j.truckId === truck.id && j.date === '2026-07-07');
+              const isMaintenance = truck.maintenanceDates?.includes('2026-07-07');
+              
+              let statusBadge = (
+                <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                  AVAILABLE
+                </span>
+              );
+              let detailText = "No active moves today";
+              
+              if (isMaintenance) {
+                statusBadge = (
+                  <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                    SERVICE / LOCK
+                  </span>
+                );
+                detailText = "Routine maintenance lock active";
+              } else if (todayJobs.length > 0) {
+                statusBadge = (
+                  <span className="px-2 py-0.5 rounded-full text-[9px] font-extrabold bg-brand-500/10 text-brand-400 border border-brand-500/20">
+                    ON ROUTE
+                  </span>
+                );
+                detailText = `Moving: ${todayJobs.map(j => j.clientName).join(', ')} (To: ${todayJobs[0]?.destination.split(',')[0]})`;
+              }
+
+              return (
+                <div key={truck.id} className="pt-3 first:pt-0 flex justify-between items-center text-xs font-semibold">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-white font-extrabold truncate">{truck.name}</span>
+                      <span className="text-slate-500 text-[10px]">({truck.licensePlate})</span>
+                    </div>
+                    <p className="text-[10px] text-slate-400 mt-1 flex items-center gap-1 font-medium">
+                      <User className="w-3 h-3 text-slate-500 flex-shrink-0" />
+                      Driver: <span className="text-slate-300 font-bold">{truck.driverName}</span> — <span className="text-slate-400 font-medium">{detailText}</span>
+                    </p>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    {statusBadge}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Job Profitability Ledger */}
+        <div className="glass-panel p-6 rounded-2xl space-y-4">
+          <div>
+            <h4 className="text-base font-bold text-white flex items-center gap-2">
+              <DollarSign className="w-5 h-5 text-indigo-400" />
+              Job Profitability Ledger
+            </h4>
+            <p className="text-xs text-slate-400">Profit breakdown for scheduled and completed moves</p>
+          </div>
+
+          <div className="divide-y divide-slate-800/40 space-y-3 max-h-[280px] overflow-y-auto pr-1">
+            {(() => {
+              const activeProfitJobs = jobs.filter(j => j.status === 'Completed' || j.status === 'Scheduled');
+              
+              if (activeProfitJobs.length === 0) {
+                return (
+                  <div className="text-center py-10 text-xs text-slate-500 font-bold uppercase tracking-wider">
+                    No active financial logs recorded
+                  </div>
+                );
+              }
+
+              return activeProfitJobs.map(job => {
+                const revenue = job.revenue || job.estimateAmount || 0;
+                const wages = (job.crewSize || 3) * (job.durationHours || 6) * (job.crewHourlyRate || 25);
+                const profit = revenue - wages;
+                const margin = Math.round((profit / revenue) * 100) || 0;
+
+                return (
+                  <div key={job.id} className="pt-3 first:pt-0 flex justify-between items-center text-xs font-semibold">
+                    <div>
+                      <span className="text-white font-extrabold">{job.clientName}</span>
+                      <div className="flex gap-2 text-[10px] text-slate-500 mt-1 font-medium">
+                        <span>Rev: <strong className="text-slate-300">{formatCurrency(revenue)}</strong></span>
+                        <span>Labor: <strong className="text-red-400">-{formatCurrency(wages)}</strong></span>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <span className={profit >= 0 ? "text-emerald-400 block font-bold" : "text-red-400 block font-bold"}>
+                        {formatCurrency(profit)}
+                      </span>
+                      <span className="text-[9px] text-slate-500 font-bold block">{margin}% Net</span>
+                    </div>
+                  </div>
+                );
+              });
+            })()}
+          </div>
+        </div>
+      </div>
+
     </div>
   );
 }
