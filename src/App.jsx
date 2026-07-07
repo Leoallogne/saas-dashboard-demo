@@ -6,6 +6,7 @@ import JobPipeline from './components/JobPipeline';
 import FleetScheduler from './components/FleetScheduler';
 import JobDetailsModal from './components/JobDetailsModal';
 import ExecutiveProfile from './components/ExecutiveProfile';
+import JobAuditLedger from './components/JobAuditLedger';
 import ToastContainer from './components/ToastNotification';
 import { initialJobs, initialTrucks } from './data/mockData';
 
@@ -236,14 +237,14 @@ export default function App() {
           
           if (!isMaintenance) {
             // Auto unassign jobs scheduled on this day & truck
-            setJobs(prevJobs => 
-              prevJobs.map(job => {
-                if (job.truckId === truckId && job.date === dateStr) {
-                  return { ...job, truckId: null };
-                }
-                return job;
-              })
-            );
+             setJobs(prevJobs => 
+               prevJobs.map(job => {
+                 if (job.truckId === truckId && job.date === dateStr && job.pipelineId === activePipelineId) {
+                   return { ...job, truckId: null };
+                 }
+                 return job;
+               })
+             );
             // Search if any job was affected
             const affectedJobs = jobs.filter(j => j.truckId === truckId && j.date === dateStr && j.pipelineId === activePipelineId);
             if (affectedJobs.length > 0) {
@@ -330,12 +331,22 @@ export default function App() {
         return (
           <FleetScheduler 
             jobs={activePipelineJobs} 
+            allJobs={jobs}
             trucks={trucks} 
+            pipelines={pipelines}
             onSelectJob={setSelectedJob} 
             onAssignTruck={handleAssignTruck}
             onUpdateJobStatus={handleUpdateJobStatus}
             onToggleMaintenance={handleToggleMaintenance}
             formatCurrency={formatCurrency}
+          />
+        );
+      case 'audit':
+        return (
+          <JobAuditLedger 
+            jobs={activePipelineJobs}
+            formatCurrency={formatCurrency}
+            addToast={addToast}
           />
         );
       case 'profile':

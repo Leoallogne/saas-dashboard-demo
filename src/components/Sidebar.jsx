@@ -12,7 +12,8 @@ import {
   ChevronRight,
   Plus,
   Layers,
-  User
+  User,
+  FileSpreadsheet
 } from 'lucide-react';
 
 export default function Sidebar({ 
@@ -36,6 +37,7 @@ export default function Sidebar({
     { id: 'dashboard', name: 'Executive Dashboard', icon: LayoutDashboard },
     { id: 'pipeline', name: 'Job Pipeline', icon: KanbanSquare },
     { id: 'scheduler', name: 'Fleet Scheduler', icon: CalendarRange },
+    { id: 'audit', name: 'Audit Ledger', icon: FileSpreadsheet },
     { id: 'profile', name: 'Executive Profile', icon: User },
   ];
 

@@ -17,7 +17,9 @@ import {
 
 export default function FleetScheduler({ 
   jobs, 
+  allJobs = [],
   trucks, 
+  pipelines = [],
   onSelectJob, 
   onAssignTruck, 
   onUpdateJobStatus, 
@@ -44,9 +46,14 @@ export default function FleetScheduler({
     (j.status === 'Scheduled' || j.status === 'Estimate Sent') && !j.truckId
   );
 
-  // Find all jobs assigned to a specific truck on a specific day
+  // Find all jobs assigned to a specific truck on a specific day in the ACTIVE branch
   const getJobsForCell = (truckId, dateStr) => {
     return jobs.filter(j => j.truckId === truckId && j.date === dateStr);
+  };
+
+  // Find all jobs assigned to a specific truck on a specific day across ALL branches
+  const getAllJobsForCell = (truckId, dateStr) => {
+    return allJobs.filter(j => j.truckId === truckId && j.date === dateStr);
   };
 
   const handleQuickAssign = (e) => {
@@ -75,6 +82,13 @@ export default function FleetScheduler({
   const selectedTruckObject = trucks.find(t => t.id === targetTruckId);
   const isSelectedTruckMaintenance = selectedTruckObject?.maintenanceDates?.includes(targetDate);
 
+  // Check if target truck is booked by another branch on the selected date
+  const isTruckBookedElsewhere = allJobs.some(j => 
+    j.truckId === targetTruckId && 
+    j.date === targetDate && 
+    !jobs.some(aj => aj.id === j.id)
+  );
+
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
@@ -82,7 +96,7 @@ export default function FleetScheduler({
         <div>
           <h2 className="text-2xl font-bold text-white tracking-tight">Fleet Scheduler</h2>
           <p className="text-slate-400 text-sm mt-0.5">
-            Manage schedules. Hover empty slots to add Maintenance or drag/click blocks to schedule.
+            Manage schedules. Hover empty slots to add Maintenance or inspect cross-branch conflicts.
           </p>
         </div>
         <div className="flex items-center gap-2 text-xs font-semibold text-slate-400 bg-slate-900 border border-slate-800 p-2 rounded-xl">
@@ -138,8 +152,16 @@ export default function FleetScheduler({
                   {/* Days Cells */}
                   {weekDays.map(day => {
                     const assignedJobs = getJobsForCell(truck.id, day.dateStr);
+                    const allCellJobs = getAllJobsForCell(truck.id, day.dateStr);
                     const isUnderMaintenance = truck.maintenanceDates?.includes(day.dateStr);
+                    
+                    // Cross-branch jobs are in allCellJobs but not in assignedJobs
+                    const crossBranchJobs = allCellJobs.filter(
+                      mj => !assignedJobs.some(aj => aj.id === mj.id)
+                    );
+
                     const isConflict = assignedJobs.length > 1;
+                    const isCrossBranchConflict = crossBranchJobs.length > 0;
 
                     return (
                       <div 
@@ -149,7 +171,9 @@ export default function FleetScheduler({
                             ? 'bg-slate-900/40 border-slate-850'
                             : isConflict 
                               ? 'bg-red-950/20 border-red-500/40 ring-1 ring-red-500/20' 
-                              : 'bg-slate-950/40 border-slate-900/50 hover:border-slate-800'
+                              : isCrossBranchConflict
+                                ? 'bg-amber-950/10 border-amber-500/20 ring-1 ring-amber-500/10'
+                                : 'bg-slate-950/40 border-slate-900/50 hover:border-slate-800'
                         }`}
                       >
                         {/* Maintenance Lock Layout */}
@@ -169,7 +193,7 @@ export default function FleetScheduler({
                           </div>
                         ) : (
                           <>
-                            {/* Conflict Warning Header */}
+                            {/* Conflict Warning Badge */}
                             {isConflict && (
                               <div className="flex items-center gap-1 text-red-400 font-extrabold text-[8px] tracking-wide bg-red-500/10 px-1 rounded absolute top-1 right-1 z-10 border border-red-500/20 animate-pulse">
                                 <AlertTriangle className="w-2.5 h-2.5" />
@@ -177,7 +201,16 @@ export default function FleetScheduler({
                               </div>
                             )}
 
+                            {/* Cross Branch Conflict Badge */}
+                            {!isConflict && isCrossBranchConflict && (
+                              <div className="flex items-center gap-1 text-amber-400 font-extrabold text-[8px] tracking-wide bg-amber-500/10 px-1 rounded absolute top-1 right-1 z-10 border border-amber-500/20 animate-pulse">
+                                <AlertTriangle className="w-2.5 h-2.5" />
+                                <span>BRANCH LOCK</span>
+                              </div>
+                            )}
+
                             <div className="flex flex-col gap-1 h-full overflow-y-auto pr-0.5">
+                              {/* Render Active Branch Jobs */}
                               {assignedJobs.map(job => (
                                 <div 
                                   key={job.id}
@@ -218,13 +251,44 @@ export default function FleetScheduler({
                                       Click block to open dispatch sheet
                                     </div>
                                   </div>
-
                                 </div>
                               ))}
+
+                              {/* Render Cross-Branch Locked Jobs */}
+                              {crossBranchJobs.map(job => {
+                                const targetBranch = pipelines.find(p => p.id === job.pipelineId);
+                                const branchLabel = targetBranch ? targetBranch.name : 'Other Division';
+                                
+                                return (
+                                  <div 
+                                    key={job.id}
+                                    className="rounded-lg p-1.5 text-left border bg-slate-900/85 border-amber-500/25 text-amber-500/60 select-none cursor-help relative group/cross"
+                                  >
+                                    <div className="text-[9px] font-extrabold uppercase truncate max-w-[80px]">
+                                      {job.clientName}
+                                    </div>
+                                    <div className="flex justify-between items-center text-[7.5px] text-slate-500 mt-0.5 font-bold">
+                                      <span>LOCKED</span>
+                                      <span className="truncate max-w-[45px] text-amber-500/70">{branchLabel}</span>
+                                    </div>
+
+                                    {/* Cross Branch Hover Tooltip */}
+                                    <div className="absolute hidden group-hover/cross:block bg-slate-900/98 border border-amber-500/30 text-white rounded-xl p-3.5 z-45 shadow-2xl w-56 text-[10px] bottom-full mb-2 left-1/2 -translate-x-1/2 pointer-events-none space-y-2 backdrop-blur-md">
+                                      <div className="flex justify-between items-start border-b border-slate-800 pb-1 font-bold">
+                                        <span className="text-amber-400">Locked Schedule</span>
+                                        <span className="text-slate-400">{branchLabel}</span>
+                                      </div>
+                                      <p className="text-slate-400 leading-relaxed text-[9px] font-medium">
+                                        Truck is active on this day in another corporate division ({branchLabel}). View or modify this job directly from the respective branch division.
+                                      </p>
+                                    </div>
+                                  </div>
+                                );
+                              })}
                             </div>
 
                             {/* Hover Toggle Maintenance Option */}
-                            {assignedJobs.length === 0 && (
+                            {allCellJobs.length === 0 && (
                               <div 
                                 onClick={() => onToggleMaintenance(truck.id, day.dateStr)}
                                 className="h-full w-full flex flex-col items-center justify-center opacity-0 group-hover/cell:opacity-100 transition-opacity duration-200 cursor-pointer"
@@ -270,6 +334,14 @@ export default function FleetScheduler({
                   <div className="bg-red-500/10 border border-red-500/20 p-2.5 rounded-lg text-[10px] text-red-400 font-semibold flex items-start gap-1.5 animate-pulse">
                     <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />
                     <span>Warning: {selectedTruckObject.name.split(' ')[0]} is scheduled for maintenance/service on this date. Choose another vehicle or day.</span>
+                  </div>
+                )}
+
+                {/* Warning Banner if Truck has booking in another branch */}
+                {!isSelectedTruckMaintenance && isTruckBookedElsewhere && (
+                  <div className="bg-amber-500/10 border border-amber-500/20 p-2.5 rounded-lg text-[10px] text-amber-400 font-semibold flex items-start gap-1.5 animate-pulse">
+                    <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                    <span>Warning: Selected truck is booked on this date in another branch division. Assigning will create a cross-branch conflict.</span>
                   </div>
                 )}
 
