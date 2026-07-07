@@ -35,6 +35,7 @@ export default function Sidebar({
     { id: 'dashboard', name: 'Executive Dashboard', icon: LayoutDashboard },
     { id: 'pipeline', name: 'Job Pipeline', icon: KanbanSquare },
     { id: 'scheduler', name: 'Fleet Scheduler', icon: CalendarRange },
+    { id: 'profile', name: 'Executive Profile', icon: User },
   ];
 
   const handleSaveBrand = () => {

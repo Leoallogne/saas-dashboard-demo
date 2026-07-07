@@ -5,6 +5,7 @@ import ExecutiveDashboard from './components/ExecutiveDashboard';
 import JobPipeline from './components/JobPipeline';
 import FleetScheduler from './components/FleetScheduler';
 import JobDetailsModal from './components/JobDetailsModal';
+import ExecutiveProfile from './components/ExecutiveProfile';
 import ToastContainer from './components/ToastNotification';
 import { initialJobs, initialTrucks } from './data/mockData';
 
@@ -335,6 +336,14 @@ export default function App() {
             onUpdateJobStatus={handleUpdateJobStatus}
             onToggleMaintenance={handleToggleMaintenance}
             formatCurrency={formatCurrency}
+          />
+        );
+      case 'profile':
+        return (
+          <ExecutiveProfile 
+            companyName={companyName}
+            setCompanyName={setCompanyName}
+            addToast={addToast}
           />
         );
       default:
