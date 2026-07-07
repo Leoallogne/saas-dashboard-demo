@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Sidebar from './components/Sidebar';
+import { Search } from 'lucide-react';
 import SkeletonLoader from './components/SkeletonLoader';
 import ExecutiveDashboard from './components/ExecutiveDashboard';
 import JobPipeline from './components/JobPipeline';
@@ -16,6 +17,7 @@ export default function App() {
   const [region, setRegion] = useState('US'); // 'US', 'UK', 'AU'
   const [toasts, setToasts] = useState([]);
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [globalSearchQuery, setGlobalSearchQuery] = useState('');
 
   // 1. SAFELY Initialize State from LocalStorage with filter safeguards
   const [pipelines, setPipelines] = useState(() => {
@@ -447,6 +449,16 @@ export default function App() {
     }
   };
 
+  const globalSearchMatches = globalSearchQuery.trim()
+    ? jobs.filter(job => 
+        job && (
+          job.clientName.toLowerCase().includes(globalSearchQuery.toLowerCase()) ||
+          job.origin.toLowerCase().includes(globalSearchQuery.toLowerCase()) ||
+          job.destination.toLowerCase().includes(globalSearchQuery.toLowerCase())
+        )
+      )
+    : [];
+
   if (isLoading) {
     return <SkeletonLoader />;
   }
@@ -471,6 +483,58 @@ export default function App() {
 
       {/* Main Panel Content */}
       <main className="flex-1 flex flex-col p-8 overflow-y-auto relative z-0">
+        
+        {/* Global Dispatch Header */}
+        <div className="flex justify-between items-center mb-6 pb-4 border-b border-slate-900/60 print:hidden flex-wrap gap-4">
+          <div className="flex items-center gap-2 bg-slate-900 border border-slate-800/80 px-3 py-1.5 rounded-xl">
+            <span className="w-2 h-2 rounded-full bg-brand-500 animate-ping inline-block" />
+            <span className="text-[10px] text-slate-400 font-extrabold uppercase tracking-widest">
+              Branch: {pipelines.find(p => p.id === activePipelineId)?.name || 'Austin HQ'}
+            </span>
+          </div>
+          
+          {/* Global Quick Search Input */}
+          <div className="relative w-64 md:w-80">
+            <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={globalSearchQuery}
+              onChange={(e) => setGlobalSearchQuery(e.target.value)}
+              placeholder="Global Search Job or Client..."
+              className="w-full bg-slate-900/50 border border-slate-800 rounded-xl pl-8.5 pr-3 py-2 text-xs text-white placeholder-slate-650 focus:outline-none focus:border-brand-500/50 transition-all shadow-inner"
+            />
+            
+            {/* Global Search Results Dropdown overlay */}
+            {globalSearchMatches.length > 0 && (
+              <div className="absolute top-full mt-2 right-0 w-80 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl overflow-hidden z-50 text-[11px] divide-y divide-slate-800/60 max-h-60 overflow-y-auto">
+                <div className="bg-slate-950 p-2 text-slate-500 uppercase tracking-widest text-[8px] font-black">
+                  Found {globalSearchMatches.length} Search Matches
+                </div>
+                {globalSearchMatches.map(match => (
+                  <div
+                    key={match.id}
+                    onClick={() => {
+                      setSelectedJob(match);
+                      setGlobalSearchQuery('');
+                    }}
+                    className="p-3 hover:bg-slate-850 cursor-pointer transition-colors space-y-1"
+                  >
+                    <div className="flex justify-between items-center">
+                      <span className="font-extrabold text-white">{match.clientName}</span>
+                      <span className="text-[9px] bg-slate-850 px-1.5 py-0.5 rounded border border-slate-800/80 text-slate-400 font-bold uppercase">
+                        {pipelines.find(p => p.id === match.pipelineId)?.name || 'Austin HQ'}
+                      </span>
+                    </div>
+                    <div className="text-[10px] text-slate-450 truncate mt-0.5">
+                      {match.origin.split(',')[0]} ➜ {match.destination.split(',')[0]}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Active Component Tab View */}
         <div className="flex-1 max-w-7xl mx-auto w-full">
           {renderActiveView()}

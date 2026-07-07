@@ -12,7 +12,9 @@ import {
   User,
   CheckCircle,
   Clock,
-  Briefcase
+  Briefcase,
+  AlertTriangle,
+  Check
 } from 'lucide-react';
 
 export default function JobDetailsModal({ 
@@ -27,6 +29,25 @@ export default function JobDetailsModal({
   if (!job) return null;
 
   const currentPrice = job.revenue || job.estimateAmount || 0;
+  
+  // Calculate deterministic distance and surcharge variables
+  const nameLength = job.clientName.length;
+  const distanceMiles = (nameLength * 7) % 45 + 15; // deterministic miles (15 - 60 mi)
+  const fuelCost = distanceMiles * 1.50;
+  const travelTimeMinutes = distanceMiles * 1.5;
+  const hoursPart = Math.floor(travelTimeMinutes / 60);
+  const minsPart = Math.round(travelTimeMinutes % 60);
+  const timeLabel = hoursPart > 0 ? `${hoursPart}h ${minsPart}m` : `${minsPart}m`;
+
+  const assignedCrew = job.crewMembers || [];
+
+  const handleToggleCrew = (crewName) => {
+    const updatedCrew = assignedCrew.includes(crewName)
+      ? assignedCrew.filter(c => c !== crewName)
+      : [...assignedCrew, crewName];
+    
+    onUpdateJobProfitability(job.id, { crewMembers: updatedCrew });
+  };
 
   const getStatusBadge = (status) => {
     switch (status) {
@@ -119,7 +140,7 @@ export default function JobDetailsModal({
 
           {/* Route Section */}
           <div className="space-y-3 bg-slate-950/20 p-4 rounded-xl border border-slate-800/40">
-            <h4 className="text-xs uppercase font-extrabold text-slate-400 tracking-wider">Move Route</h4>
+            <h4 className="text-xs uppercase font-extrabold text-slate-400 tracking-wider">Move Route & Logistics</h4>
             <div className="flex flex-col md:flex-row md:items-center gap-4 text-xs font-medium">
               <div className="flex items-start gap-2.5 flex-1">
                 <MapPin className="w-4 h-4 text-brand-400 mt-0.5 flex-shrink-0" />
@@ -134,6 +155,48 @@ export default function JobDetailsModal({
                 <div>
                   <p className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Destination</p>
                   <p className="text-slate-200 mt-0.5">{job.destination}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* SVG Map Mockup */}
+            <div className="h-28 w-full bg-slate-950/90 rounded-xl border border-slate-850 relative overflow-hidden flex items-center justify-center mt-3 select-none">
+              <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle, #fff 1px, transparent 1px)', backgroundSize: '16px 16px' }} />
+              
+              <svg className="absolute inset-0 w-full h-full pointer-events-none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M 60,65 Q 160,20 280,75 T 460,40" fill="none" stroke="#0284c7" strokeWidth="2" strokeDasharray="5,5" />
+                <path d="M 60,65 Q 160,20 280,75 T 460,40" fill="none" stroke="#0284c7" strokeWidth="6" className="opacity-15 blur-sm" />
+              </svg>
+              
+              <div className="absolute left-[50px] top-[45px] flex flex-col items-center">
+                <div className="w-4 h-4 rounded-full bg-brand-500/20 border border-brand-400 flex items-center justify-center">
+                  <div className="w-1.5 h-1.5 rounded-full bg-brand-450" />
+                </div>
+                <span className="text-[8px] font-bold text-slate-400 mt-1 bg-slate-900 px-1 py-0.5 rounded border border-slate-800 shadow uppercase">Origin</span>
+              </div>
+
+              <div className="absolute right-[120px] top-[20px] flex flex-col items-center">
+                <div className="w-4 h-4 rounded-full bg-emerald-500/20 border border-emerald-400 flex items-center justify-center">
+                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-450" />
+                </div>
+                <span className="text-[8px] font-bold text-slate-400 mt-1 bg-slate-900 px-1 py-0.5 rounded border border-slate-800 shadow uppercase">Dest</span>
+              </div>
+
+              {/* Floating Info Overlay card */}
+              <div className="absolute bottom-2.5 right-2.5 bg-slate-900/90 border border-slate-850 p-2.5 rounded-lg flex items-center gap-3 text-[9px] font-bold text-slate-350 shadow-xl backdrop-blur-sm">
+                <div className="space-y-0.5">
+                  <span className="text-slate-500 block uppercase text-[6.5px] tracking-wider font-extrabold">Distance</span>
+                  <span className="text-white font-black">{distanceMiles} mi</span>
+                </div>
+                <div className="h-6 w-px bg-slate-850" />
+                <div className="space-y-0.5">
+                  <span className="text-slate-500 block uppercase text-[6.5px] tracking-wider font-extrabold">Est. Time</span>
+                  <span className="text-white font-black">{timeLabel}</span>
+                </div>
+                <div className="h-6 w-px bg-slate-850" />
+                <div className="space-y-0.5">
+                  <span className="text-slate-500 block uppercase text-[6.5px] tracking-wider font-extrabold">Fuel Cost</span>
+                  <span className="text-brand-400 font-black">{formatCurrency(fuelCost)}</span>
                 </div>
               </div>
             </div>
@@ -189,6 +252,37 @@ export default function JobDetailsModal({
                     </option>
                   ))}
                 </select>
+              </div>
+            </div>
+
+            {/* Crew Member Checklist */}
+            <div className="flex flex-col gap-3 p-4 rounded-xl bg-slate-900 border border-slate-800/60 mt-3">
+              <div className="flex justify-between items-center">
+                <span className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Movers Crew Roster Assignment</span>
+                <span className="text-[9px] text-slate-400 font-bold">
+                  {assignedCrew.length} / {job.crewSize || 3} assigned
+                </span>
+              </div>
+              
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {['Marcus Vance (Chief)', 'Carlos Santini', 'David Miller', 'Tyler Durden', 'John Wick', 'Steve Rogers'].map(crewName => {
+                  const isAssigned = assignedCrew.includes(crewName);
+                  return (
+                    <button
+                      key={crewName}
+                      type="button"
+                      onClick={() => handleToggleCrew(crewName)}
+                      className={`px-2.5 py-1.5 rounded-lg border text-left text-[9.5px] font-bold transition-all flex items-center justify-between cursor-pointer ${
+                        isAssigned
+                          ? 'bg-brand-500/15 border-brand-500/35 text-brand-400'
+                          : 'bg-slate-950 border-slate-850 text-slate-500 hover:text-slate-350'
+                      }`}
+                    >
+                      <span className="truncate">{crewName}</span>
+                      {isAssigned && <Check className="w-3.5 h-3.5 text-brand-400 flex-shrink-0" />}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </div>
