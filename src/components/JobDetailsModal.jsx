@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   X, 
   MapPin, 
@@ -14,8 +14,11 @@ import {
   Clock,
   Briefcase,
   AlertTriangle,
-  Check
+  Check,
+  ExternalLink,
+  Navigation
 } from 'lucide-react';
+import { useJsApiLoader, GoogleMap, DirectionsRenderer } from '@react-google-maps/api';
 
 export default function JobDetailsModal({ 
   job, 
@@ -26,18 +29,55 @@ export default function JobDetailsModal({
   formatCurrency,
   onUpdateJobProfitability
 }) {
+  const [directionsResponse, setDirectionsResponse] = useState(null);
+  const [distance, setDistance] = useState('');
+  const [duration, setDuration] = useState('');
+  const [travelMode, setTravelMode] = useState('DRIVING'); // DRIVING, WALKING, BICYCLING, TRANSIT
+  
+  const { isLoaded } = useJsApiLoader({
+    id: 'google-map-script',
+    googleMapsApiKey: 'AIzaSy_DEV_KEY_PLACEHOLDER_999',
+    libraries: ['places']
+  });
+
+  useEffect(() => {
+    if (isLoaded && job?.origin && job?.destination && window.google) {
+      const directionsService = new window.google.maps.DirectionsService();
+      directionsService.route(
+        {
+          origin: job.origin,
+          destination: job.destination,
+          travelMode: window.google.maps.TravelMode[travelMode],
+        },
+        (result, status) => {
+          if (status === window.google.maps.DirectionsStatus.OK) {
+            setDirectionsResponse(result);
+            if (result.routes[0]?.legs[0]) {
+              setDistance(result.routes[0].legs[0].distance.text);
+              setDuration(result.routes[0].legs[0].duration.text);
+            }
+          } else {
+            console.error(`Directions request failed due to ${status}`);
+          }
+        }
+      );
+    }
+  }, [isLoaded, job?.origin, job?.destination, travelMode]);
+
   if (!job) return null;
 
   const currentPrice = job.revenue || job.estimateAmount || 0;
   
   // Calculate deterministic distance and surcharge variables
   const nameLength = job.clientName.length;
-  const distanceMiles = (nameLength * 7) % 45 + 15; // deterministic miles (15 - 60 mi)
+  const distanceMilesFallback = (nameLength * 7) % 45 + 15; // deterministic miles (15 - 60 mi)
+  const distanceMiles = distance ? parseFloat(distance.replace(/[^\d.-]/g, '')) : distanceMilesFallback;
+  const displayDistance = distance || `${distanceMilesFallback} mi`;
   const fuelCost = distanceMiles * 1.50;
   const travelTimeMinutes = distanceMiles * 1.5;
   const hoursPart = Math.floor(travelTimeMinutes / 60);
   const minsPart = Math.round(travelTimeMinutes % 60);
-  const timeLabel = hoursPart > 0 ? `${hoursPart}h ${minsPart}m` : `${minsPart}m`;
+  const timeLabel = duration || (hoursPart > 0 ? `${hoursPart}h ${minsPart}m` : `${minsPart}m`);
 
   const assignedCrew = job.crewMembers || [];
 
@@ -159,34 +199,81 @@ export default function JobDetailsModal({
               </div>
             </div>
 
-            {/* SVG Map Mockup */}
-            <div className="h-28 w-full bg-slate-950/90 rounded-xl border border-slate-850 relative overflow-hidden flex items-center justify-center mt-3 select-none">
-              <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle, #fff 1px, transparent 1px)', backgroundSize: '16px 16px' }} />
-              
-              <svg className="absolute inset-0 w-full h-full pointer-events-none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M 60,65 Q 160,20 280,75 T 460,40" fill="none" stroke="#0284c7" strokeWidth="2" strokeDasharray="5,5" />
-                <path d="M 60,65 Q 160,20 280,75 T 460,40" fill="none" stroke="#0284c7" strokeWidth="6" className="opacity-15 blur-sm" />
-              </svg>
-              
-              <div className="absolute left-[50px] top-[45px] flex flex-col items-center">
-                <div className="w-4 h-4 rounded-full bg-brand-500/20 border border-brand-400 flex items-center justify-center">
-                  <div className="w-1.5 h-1.5 rounded-full bg-brand-450" />
-                </div>
-                <span className="text-[8px] font-bold text-slate-400 mt-1 bg-slate-900 px-1 py-0.5 rounded border border-slate-800 shadow uppercase">Origin</span>
+            {/* Travel Mode Selector & External Link */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mt-4 text-xs">
+              <div className="flex items-center gap-1.5 bg-slate-950 p-1 rounded-lg border border-slate-800">
+                {['DRIVING', 'TRANSIT', 'BICYCLING', 'WALKING'].map(mode => (
+                  <button
+                    key={mode}
+                    onClick={() => setTravelMode(mode)}
+                    className={`px-2 py-1 rounded text-[10px] font-bold tracking-wide transition-all ${
+                      travelMode === mode
+                        ? 'bg-brand-500/20 text-brand-400 border border-brand-500/30 shadow-sm'
+                        : 'text-slate-500 hover:text-slate-300 hover:bg-slate-900 border border-transparent'
+                    }`}
+                  >
+                    {mode}
+                  </button>
+                ))}
               </div>
+              <a
+                href={`https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(job.origin)}&destination=${encodeURIComponent(job.destination)}&travelmode=${travelMode.toLowerCase()}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-500/20 text-indigo-400 rounded-lg font-semibold transition-colors shrink-0"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                Buka di Google Maps
+              </a>
+            </div>
 
-              <div className="absolute right-[120px] top-[20px] flex flex-col items-center">
-                <div className="w-4 h-4 rounded-full bg-emerald-500/20 border border-emerald-400 flex items-center justify-center">
-                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-450" />
+            {/* Google Map Section */}
+            <div className="h-64 w-full bg-slate-950/90 rounded-xl border border-slate-850 relative overflow-hidden mt-3 shadow-inner">
+              {!isLoaded ? (
+                <div className="w-full h-full flex items-center justify-center text-slate-500 text-xs font-semibold gap-2 animate-pulse">
+                  <Navigation className="w-4 h-4" /> Memuat Peta...
                 </div>
-                <span className="text-[8px] font-bold text-slate-400 mt-1 bg-slate-900 px-1 py-0.5 rounded border border-slate-800 shadow uppercase">Dest</span>
-              </div>
-
+              ) : (
+                <GoogleMap
+                  mapContainerStyle={{ width: '100%', height: '100%' }}
+                  center={{ lat: 30.2672, lng: -97.7431 }} // Austin TX dummy default
+                  zoom={10}
+                  options={{
+                    disableDefaultUI: true,
+                    zoomControl: true,
+                    styles: [
+                      { elementType: "geometry", stylers: [{ color: "#242f3e" }] },
+                      { elementType: "labels.text.stroke", stylers: [{ color: "#242f3e" }] },
+                      { elementType: "labels.text.fill", stylers: [{ color: "#746855" }] },
+                      { featureType: "administrative.locality", elementType: "labels.text.fill", stylers: [{ color: "#d59563" }] },
+                      { featureType: "road", elementType: "geometry", stylers: [{ color: "#38414e" }] },
+                      { featureType: "road", elementType: "geometry.stroke", stylers: [{ color: "#212a37" }] },
+                      { featureType: "road", elementType: "labels.text.fill", stylers: [{ color: "#9ca5b3" }] },
+                      { featureType: "water", elementType: "geometry", stylers: [{ color: "#17263c" }] },
+                      { featureType: "water", elementType: "labels.text.fill", stylers: [{ color: "#515c6d" }] }
+                    ]
+                  }}
+                >
+                  {directionsResponse && (
+                    <DirectionsRenderer 
+                      directions={directionsResponse}
+                      options={{
+                        polylineOptions: {
+                          strokeColor: '#0ea5e9',
+                          strokeOpacity: 0.8,
+                          strokeWeight: 4
+                        }
+                      }}
+                    />
+                  )}
+                </GoogleMap>
+              )}
+              
               {/* Floating Info Overlay card */}
-              <div className="absolute bottom-2.5 right-2.5 bg-slate-900/90 border border-slate-850 p-2.5 rounded-lg flex items-center gap-3 text-[9px] font-bold text-slate-350 shadow-xl backdrop-blur-sm">
+              <div className="absolute bottom-2.5 right-2.5 bg-slate-900/90 border border-slate-850 p-2.5 rounded-lg flex items-center gap-3 text-[9px] font-bold text-slate-350 shadow-xl backdrop-blur-md z-10 pointer-events-none">
                 <div className="space-y-0.5">
                   <span className="text-slate-500 block uppercase text-[6.5px] tracking-wider font-extrabold">Distance</span>
-                  <span className="text-white font-black">{distanceMiles} mi</span>
+                  <span className="text-white font-black">{displayDistance}</span>
                 </div>
                 <div className="h-6 w-px bg-slate-850" />
                 <div className="space-y-0.5">
