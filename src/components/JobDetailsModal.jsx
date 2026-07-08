@@ -464,6 +464,30 @@ export default function JobDetailsModal({
             })()}
           </div>
 
+          {/* Live Dispatch Micro-Status */}
+          {job.status === 'Scheduled' && (
+            <div className="space-y-3 border-t border-slate-800/50 pt-5 mt-2 mb-2">
+              <h4 className="text-xs uppercase font-extrabold text-slate-400 tracking-wider flex items-center gap-1.5">
+                <Navigation className="w-4 h-4 text-brand-400" /> Live Dispatch Operations
+              </h4>
+              <div className="flex flex-wrap gap-2">
+                {['Pending', 'Dispatched', 'Arrived', 'Loaded'].map(ms => (
+                  <button 
+                    key={ms}
+                    onClick={() => onUpdateJobProfitability(job.id, { microStatus: ms })}
+                    className={`px-3 py-1.5 rounded-lg text-[10px] font-bold tracking-wider uppercase border transition-all ${
+                      (job.microStatus || 'Pending') === ms 
+                        ? 'bg-amber-500/20 text-amber-400 border-amber-500/40 shadow-[0_0_10px_rgba(245,158,11,0.2)]' 
+                        : 'bg-slate-950 text-slate-500 border-slate-800 hover:border-amber-500/50 hover:text-amber-400'
+                    }`}
+                  >
+                    {ms}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
         </div>
 
         {/* Modal Actions Footer */}

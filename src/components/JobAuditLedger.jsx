@@ -34,6 +34,7 @@ export default function JobAuditLedger({ jobs, formatCurrency, addToast }) {
   const [activeInvoiceJobId, setActiveInvoiceJobId] = useState(null);
   const [selectedJobIds, setSelectedJobIds] = useState([]);
   const [reconciledJobIds, setReconciledJobIds] = useState([]); // Local state for reconciled jobs
+  const [isSendingInvoice, setIsSendingInvoice] = useState(false);
 
   // Filter ONLY Completed jobs for auditing
   const completedJobs = jobs.filter(j => j.status === 'Completed');
@@ -581,6 +582,25 @@ export default function JobAuditLedger({ jobs, formatCurrency, addToast }) {
                   className="px-4 py-2 text-xs font-bold text-slate-400 hover:text-white transition-colors"
                 >
                   Close
+                </button>
+                <button
+                  disabled={isSendingInvoice}
+                  onClick={() => {
+                    setIsSendingInvoice(true);
+                    setTimeout(() => {
+                      setIsSendingInvoice(false);
+                      addToast('success', 'Invoice Sent', `Invoice securely dispatched to ${invJob.clientName} via SMS & Email.`);
+                      setActiveInvoiceJobId(null);
+                    }, 1000);
+                  }}
+                  className="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-xl transition-all shadow shadow-brand-600/10 flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  {isSendingInvoice ? (
+                    <span className="w-3.5 h-3.5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <Mail className="w-3.5 h-3.5" />
+                  )}
+                  {isSendingInvoice ? 'Sending...' : 'Send via SMS/Email'}
                 </button>
                 <button
                   onClick={() => {

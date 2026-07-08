@@ -6,7 +6,12 @@ import {
   Truck,
   ArrowUpRight,
   ChevronRight,
-  User
+  User,
+  Calculator,
+  MapPin,
+  Box,
+  CheckCircle,
+  FileText
 } from 'lucide-react';
 import { 
   AreaChart, 
@@ -17,10 +22,15 @@ import {
   Tooltip, 
   ResponsiveContainer 
 } from 'recharts';
-import { activityLogs, weeklyRevenueData } from '../data/mockData';
+import { activityLogs } from '../data/mockData';
 
 export default function ExecutiveDashboard({ jobs, trucks, companyName, setActiveTab, formatCurrency }) {
-  const [chartMetric, setChartMetric] = useState('revenue'); // 'revenue', 'wages', 'profit'
+  const [chartMetric, setChartMetric] = useState('revenue'); // 'revenue', 'fuel', 'profit'
+  
+  // Quick Quote Generator State
+  const [quoteRooms, setQuoteRooms] = useState('1');
+  const [quoteDistance, setQuoteDistance] = useState('');
+  const [quotePacking, setQuotePacking] = useState(false);
 
   // 1. Calculate dynamic statistics
   const completedJobs = jobs.filter(j => j.status === 'Completed');
@@ -31,30 +41,36 @@ export default function ExecutiveDashboard({ jobs, trucks, companyName, setActiv
     .filter(j => j.status === 'Completed' || j.status === 'Scheduled')
     .reduce((sum, j) => sum + (j.revenue || j.estimateAmount || 0), 0);
 
-  const activeJobsCount = scheduledJobs.length;
-  
-  const pendingEstimatesCount = jobs.filter(j => j.status === 'Estimate Sent' || j.status === 'New Inquiry').length;
+  // Average Job Value (AJV)
+  const avgJobValue = completedJobs.length > 0 
+    ? Math.round(completedJobs.reduce((sum, j) => sum + (j.revenue || j.estimateAmount || 0), 0) / completedJobs.length)
+    : 0;
+
+  // Pending Invoices (Unpaid/Running jobs)
+  const pendingInvoices = scheduledJobs.reduce((sum, j) => sum + (j.estimateAmount || 0), 0);
 
   // 2. Calculate operational profitability
   const totalWages = jobs
     .filter(j => j.status === 'Completed' || j.status === 'Scheduled')
     .reduce((sum, j) => sum + ((j.crewSize || 3) * (j.durationHours || 6) * (j.crewHourlyRate || 25)), 0);
 
-  const netProfit = totalRevenue - totalWages;
+  // Fuel Expenses Estimate (approx 15% of revenue for demo logistics)
+  const totalFuel = Math.round(totalRevenue * 0.15);
+
+  const netProfit = totalRevenue - totalWages - totalFuel;
   const avgMargin = totalRevenue > 0 ? Math.round((netProfit / totalRevenue) * 100) : 0;
 
-  // Truck utilization: percentage of assigned/busy trucks
   // 3. Dynamic Weekly Performance Data based on active branch statistics
   const chartData = [
-    { name: 'Week 1', revenue: Math.round(totalRevenue * 0.15), wages: Math.round(totalWages * 0.15), profit: Math.round(netProfit * 0.15) },
-    { name: 'Week 2', revenue: Math.round(totalRevenue * 0.25), wages: Math.round(totalWages * 0.25), profit: Math.round(netProfit * 0.25) },
-    { name: 'Week 3', revenue: Math.round(totalRevenue * 0.20), wages: Math.round(totalWages * 0.20), profit: Math.round(netProfit * 0.20) },
-    { name: 'Week 4', revenue: Math.round(totalRevenue * 0.40), wages: Math.round(totalWages * 0.40), profit: Math.round(netProfit * 0.40) }
+    { name: 'Week 1', revenue: Math.round(totalRevenue * 0.15), fuel: Math.round(totalFuel * 0.15), profit: Math.round(netProfit * 0.15) },
+    { name: 'Week 2', revenue: Math.round(totalRevenue * 0.25), fuel: Math.round(totalFuel * 0.25), profit: Math.round(netProfit * 0.25) },
+    { name: 'Week 3', revenue: Math.round(totalRevenue * 0.20), fuel: Math.round(totalFuel * 0.20), profit: Math.round(netProfit * 0.20) },
+    { name: 'Week 4', revenue: Math.round(totalRevenue * 0.40), fuel: Math.round(totalFuel * 0.40), profit: Math.round(netProfit * 0.40) }
   ];
 
   const metricConfigs = {
-    revenue: { color: '#0284c7', label: 'Billings' },
-    wages: { color: '#f87171', label: 'Wages Cost' },
+    revenue: { color: '#0284c7', label: 'Gross Revenue' },
+    fuel: { color: '#f59e0b', label: 'Fuel & Fleet Exp.' },
     profit: { color: '#34d399', label: 'Net Profit' }
   };
   const activeConfig = metricConfigs[chartMetric];
@@ -62,6 +78,15 @@ export default function ExecutiveDashboard({ jobs, trucks, companyName, setActiv
   const busyTrucksCount = trucks.filter(t => t.status === 'Busy').length;
   const totalTrucksCount = trucks.length;
   const truckUtilization = Math.round((busyTrucksCount / totalTrucksCount) * 100);
+
+  // Quick Quote Calculation Logic
+  const calculateQuote = () => {
+    const baseRate = parseInt(quoteRooms) * 350;
+    const distanceCost = (parseInt(quoteDistance) || 0) * 1.5;
+    const packingCost = quotePacking ? (parseInt(quoteRooms) * 150) : 0;
+    return baseRate + distanceCost + packingCost;
+  };
+  const estimatedQuote = calculateQuote();
 
   return (
     <div className="space-y-7 animate-fade-in">
@@ -72,7 +97,7 @@ export default function ExecutiveDashboard({ jobs, trucks, companyName, setActiv
             Overview for {companyName}
           </h2>
           <p className="text-slate-400 text-sm mt-0.5">
-            Real-time financial and operational health monitor.
+            Logistics financial health & active dispatch monitor.
           </p>
         </div>
         <div className="px-4 py-2 bg-brand-500/10 border border-brand-500/20 text-brand-400 text-xs font-semibold rounded-lg">
@@ -80,10 +105,10 @@ export default function ExecutiveDashboard({ jobs, trucks, companyName, setActiv
         </div>
       </div>
 
-      {/* Metrics Cards Grid - Now Interactive Click redirects */}
+      {/* Logistics Specific Metrics Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
         
-        {/* Total Revenue -> Redirects to Kanban Pipeline */}
+        {/* Total Revenue */}
         <div 
           onClick={() => setActiveTab('pipeline')}
           className="glass-panel-interactive p-5 rounded-2xl relative overflow-hidden group cursor-pointer border hover:border-emerald-500/30"
@@ -112,40 +137,66 @@ export default function ExecutiveDashboard({ jobs, trucks, companyName, setActiv
           </div>
         </div>
 
-        {/* Active Jobs -> Redirects to Pipeline */}
+        {/* Average Job Value */}
         <div 
-          onClick={() => setActiveTab('pipeline')}
-          className="glass-panel-interactive p-5 rounded-2xl relative overflow-hidden group cursor-pointer border hover:border-brand-500/30"
-          title="Click to view scheduled job boards"
+          onClick={() => setActiveTab('audit')}
+          className="glass-panel-interactive p-5 rounded-2xl relative overflow-hidden group cursor-pointer border hover:border-sky-500/30"
+          title="Click to view completed audits"
         >
-          <div className="absolute right-0 top-0 w-24 h-24 bg-brand-500/10 rounded-full blur-2xl -mr-5 -mt-5 group-hover:bg-brand-500/20 transition-all duration-300" />
+          <div className="absolute right-0 top-0 w-24 h-24 bg-sky-500/10 rounded-full blur-2xl -mr-5 -mt-5 group-hover:bg-sky-500/20 transition-all duration-300" />
           <div className="flex justify-between items-start">
-            <span className="text-slate-400 text-xs font-bold uppercase tracking-wider">Active Jobs</span>
-            <div className="w-8 h-8 rounded-lg bg-brand-500/10 flex items-center justify-center border border-brand-500/20 group-hover:border-brand-400 transition-colors">
-              <TrendingUp className="w-4.5 h-4.5 text-brand-400" />
+            <span className="text-slate-400 text-xs font-bold uppercase tracking-wider">Avg Job Value</span>
+            <div className="w-8 h-8 rounded-lg bg-sky-500/10 flex items-center justify-center border border-sky-500/20 group-hover:border-sky-400 transition-colors">
+              <TrendingUp className="w-4.5 h-4.5 text-sky-400" />
             </div>
           </div>
           <div className="mt-4">
-            <h3 className="text-3xl font-extrabold text-white tracking-tight group-hover:text-brand-400 transition-colors">
-              {activeJobsCount}
+            <h3 className="text-3xl font-extrabold text-white tracking-tight group-hover:text-sky-400 transition-colors">
+              {formatCurrency(avgJobValue)}
             </h3>
             <div className="flex items-center justify-between mt-2">
               <div className="flex items-center gap-1 text-xs">
-                <span className="text-brand-400 font-semibold">{scheduledJobs.length} scheduled</span>
-                <span className="text-slate-500">active</span>
+                <span className="text-sky-400 font-semibold">Per completed move</span>
               </div>
               <ChevronRight className="w-3.5 h-3.5 text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity" />
             </div>
           </div>
         </div>
 
-        {/* Net Profit -> Redirects to Pipeline */}
+        {/* Pending Invoices */}
+        <div 
+          onClick={() => setActiveTab('pipeline')}
+          className="glass-panel-interactive p-5 rounded-2xl relative overflow-hidden group cursor-pointer border hover:border-amber-500/30"
+          title="Click to view scheduled jobs"
+        >
+          <div className="absolute right-0 top-0 w-24 h-24 bg-amber-500/10 rounded-full blur-2xl -mr-5 -mt-5 group-hover:bg-amber-500/20 transition-all duration-300" />
+          <div className="flex justify-between items-start">
+            <span className="text-slate-400 text-xs font-bold uppercase tracking-wider">Pending Invoices</span>
+            <div className="w-8 h-8 rounded-lg bg-amber-500/10 flex items-center justify-center border border-amber-500/20 group-hover:border-amber-400 transition-colors">
+              <FileText className="w-4.5 h-4.5 text-amber-400" />
+            </div>
+          </div>
+          <div className="mt-4">
+            <h3 className="text-3xl font-extrabold text-white tracking-tight group-hover:text-amber-400 transition-colors">
+              {formatCurrency(pendingInvoices)}
+            </h3>
+            <div className="flex items-center justify-between mt-2">
+              <div className="flex items-center gap-1 text-xs">
+                <span className="text-amber-400 font-semibold">{scheduledJobs.length} scheduled</span>
+                <span className="text-slate-500">awaiting collection</span>
+              </div>
+              <ChevronRight className="w-3.5 h-3.5 text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+            </div>
+          </div>
+        </div>
+
+        {/* Net Profit */}
         <div 
           onClick={() => setActiveTab('pipeline')}
           className="glass-panel-interactive p-5 rounded-2xl relative overflow-hidden group cursor-pointer border hover:border-indigo-500/30"
           title="Click to view all jobs profitability"
         >
-          <div className="absolute right-0 top-0 w-24 h-24 bg-brand-500/10 rounded-full blur-2xl -mr-5 -mt-5 group-hover:bg-brand-500/20 transition-all duration-300" />
+          <div className="absolute right-0 top-0 w-24 h-24 bg-indigo-500/10 rounded-full blur-2xl -mr-5 -mt-5 group-hover:bg-indigo-500/20 transition-all duration-300" />
           <div className="flex justify-between items-start">
             <span className="text-slate-400 text-xs font-bold uppercase tracking-wider">Net Profit (Est.)</span>
             <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20 group-hover:border-indigo-400 transition-colors">
@@ -159,60 +210,31 @@ export default function ExecutiveDashboard({ jobs, trucks, companyName, setActiv
             <div className="flex items-center justify-between mt-2">
               <div className="flex items-center gap-1 text-xs">
                 <span className="text-indigo-400 font-semibold">{avgMargin}% margin</span>
-                <span className="text-slate-500">estimated profit</span>
+                <span className="text-slate-500">after fuel & wages</span>
               </div>
               <ChevronRight className="w-3.5 h-3.5 text-slate-500 opacity-0 group-hover:opacity-100 transition-opacity" />
             </div>
           </div>
         </div>
 
-        {/* Truck Utilization -> Redirects to Fleet Scheduler */}
-        <div 
-          onClick={() => setActiveTab('scheduler')}
-          className="glass-panel-interactive p-5 rounded-2xl relative overflow-hidden group cursor-pointer border hover:border-indigo-500/30"
-          title="Click to view fleet dispatch scheduling grid"
-        >
-          <div className="absolute right-0 top-0 w-24 h-24 bg-brand-500/10 rounded-full blur-2xl -mr-5 -mt-5 group-hover:bg-brand-500/20 transition-all duration-300" />
-          <div className="flex justify-between items-start">
-            <span className="text-slate-400 text-xs font-bold uppercase tracking-wider">Fleet Utilization</span>
-            <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center border border-indigo-500/20 group-hover:border-indigo-400 transition-colors">
-              <Truck className="w-4.5 h-4.5 text-indigo-400" />
-            </div>
-          </div>
-          <div className="mt-4">
-            <div className="flex items-baseline gap-2">
-              <h3 className="text-3xl font-extrabold text-white tracking-tight group-hover:text-indigo-400 transition-colors">
-                {truckUtilization}%
-              </h3>
-              <span className="text-slate-400 text-xs font-medium">({busyTrucksCount}/{totalTrucksCount} Trucks)</span>
-            </div>
-            {/* Progress Bar */}
-            <div className="mt-3.5 w-full bg-slate-800 rounded-full h-2 overflow-hidden border border-slate-800/40">
-              <div 
-                className="bg-gradient-to-r from-brand-500 to-sky-400 h-full rounded-full transition-all duration-500"
-                style={{ width: `${truckUtilization}%` }}
-              />
-            </div>
-          </div>
-        </div>
       </div>
 
-      {/* Main Charts & Logs Section */}
+      {/* Main Charts & Quick Quote Section */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* Revenue Chart (Recharts) */}
+        {/* Logistics Chart (Recharts) */}
         <div className="lg:col-span-2 glass-panel p-6 rounded-2xl flex flex-col justify-between space-y-4">
           <div className="flex flex-wrap justify-between items-center gap-3">
             <div>
-              <h4 className="text-base font-bold text-white">Performance Analytics</h4>
-              <p className="text-xs text-slate-400">Weekly operational financial distributions</p>
+              <h4 className="text-base font-bold text-white">Financial Analytics</h4>
+              <p className="text-xs text-slate-400">Weekly revenue vs operational fuel expenses</p>
             </div>
             
             {/* Chart Metric Selector Buttons */}
             <div className="flex bg-slate-950 p-1 rounded-lg border border-slate-850">
               {[
                 { id: 'revenue', label: 'Revenue' },
-                { id: 'wages', label: 'Movers Wages' },
+                { id: 'fuel', label: 'Fuel Exp.' },
                 { id: 'profit', label: 'Net Profit' }
               ].map(m => (
                 <button
@@ -231,7 +253,7 @@ export default function ExecutiveDashboard({ jobs, trucks, companyName, setActiv
             </div>
           </div>
           
-          <div className="h-60 w-full mt-2">
+          <div className="h-64 w-full mt-2">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart
                 data={chartData}
@@ -282,27 +304,73 @@ export default function ExecutiveDashboard({ jobs, trucks, companyName, setActiv
           </div>
         </div>
 
-        {/* Live Logs panel */}
-        <div className="glass-panel p-6 rounded-2xl flex flex-col h-full space-y-4">
-          <div>
-            <h4 className="text-base font-bold text-white">Live Updates</h4>
-            <p className="text-xs text-slate-400">Chronological dispatcher actions</p>
+        {/* Quick Quote Generator */}
+        <div className="glass-panel p-6 rounded-2xl flex flex-col h-full border border-sky-500/20 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-sky-500/5 rounded-bl-full pointer-events-none" />
+          
+          <div className="mb-4">
+            <h4 className="text-base font-bold text-white flex items-center gap-2">
+              <Calculator className="w-5 h-5 text-sky-400" />
+              Instant Quote
+            </h4>
+            <p className="text-xs text-slate-400">Generate pricing over the phone</p>
           </div>
 
-          <div className="space-y-4 overflow-y-auto flex-1 pr-1 max-h-[250px]">
-            {activityLogs.map((log) => (
-              <div key={log.id} className="flex gap-3 group">
-                <div className="w-8 h-8 rounded-lg bg-slate-900 border border-slate-800/80 flex items-center justify-center flex-shrink-0 text-slate-400 group-hover:border-brand-500/30 group-hover:text-brand-400 transition-colors">
-                  <Clock className="w-3.5 h-3.5" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-xs font-semibold text-slate-200 group-hover:text-white transition-colors truncate">
-                    {log.message}
-                  </p>
-                  <span className="text-[10px] text-slate-500 mt-1 block">{log.time}</span>
-                </div>
+          <div className="space-y-4 flex-1">
+            {/* Rooms Input */}
+            <div className="space-y-1.5">
+              <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider flex items-center gap-1.5">
+                <Box className="w-3 h-3" /> Property Size
+              </label>
+              <select 
+                value={quoteRooms}
+                onChange={(e) => setQuoteRooms(e.target.value)}
+                className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white focus:outline-none focus:border-sky-500/50 appearance-none cursor-pointer"
+              >
+                <option value="1">1 Bedroom ($350 Base)</option>
+                <option value="2">2 Bedrooms ($700 Base)</option>
+                <option value="3">3 Bedrooms ($1,050 Base)</option>
+                <option value="4">4+ Bedrooms ($1,400 Base)</option>
+              </select>
+            </div>
+
+            {/* Distance Input */}
+            <div className="space-y-1.5">
+              <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider flex items-center gap-1.5">
+                <MapPin className="w-3 h-3" /> Transit Distance (Miles)
+              </label>
+              <input 
+                type="number" 
+                placeholder="e.g., 45"
+                value={quoteDistance}
+                onChange={(e) => setQuoteDistance(e.target.value)}
+                className="w-full bg-slate-900 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-sky-500/50"
+              />
+            </div>
+
+            {/* Packing Service Toggle */}
+            <div className="flex items-center justify-between bg-slate-900/50 p-3 rounded-lg border border-slate-800/80 cursor-pointer hover:bg-slate-900 transition-colors" onClick={() => setQuotePacking(!quotePacking)}>
+              <span className="text-xs font-semibold text-slate-300">Add Full Packing Service</span>
+              <div className={`w-5 h-5 rounded flex items-center justify-center transition-colors border ${quotePacking ? 'bg-sky-500 border-sky-500 text-white' : 'bg-slate-950 border-slate-700 text-transparent'}`}>
+                <CheckCircle className="w-3.5 h-3.5" />
               </div>
-            ))}
+            </div>
+          </div>
+
+          {/* Quote Result */}
+          <div className="mt-4 pt-4 border-t border-slate-800/80">
+            <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest block text-center mb-1">
+              Estimated Total Price
+            </span>
+            <div className="text-3xl font-black text-sky-400 text-center animate-fade-in transition-all">
+              {formatCurrency(estimatedQuote)}
+            </div>
+            <button 
+              onClick={() => setActiveTab('pipeline')}
+              className="w-full mt-3 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold py-2.5 rounded-xl transition-all shadow-md"
+            >
+              + Start New Job Flow
+            </button>
           </div>
         </div>
 
@@ -312,12 +380,18 @@ export default function ExecutiveDashboard({ jobs, trucks, companyName, setActiv
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Active Fleet Panel */}
         <div className="glass-panel p-6 rounded-2xl space-y-4">
-          <div>
-            <h4 className="text-base font-bold text-white flex items-center gap-2">
-              <Truck className="w-5 h-5 text-brand-400" />
-              Fleet Status & Dispatch Ledger
-            </h4>
-            <p className="text-xs text-slate-400">Live operational status of box trucks and sprinter vans</p>
+          <div className="flex justify-between items-start">
+            <div>
+              <h4 className="text-base font-bold text-white flex items-center gap-2">
+                <Truck className="w-5 h-5 text-brand-400" />
+                Fleet Dispatch Ledger
+              </h4>
+              <p className="text-xs text-slate-400">Live operational status of trucks</p>
+            </div>
+            <div className="text-right">
+              <span className="text-xs font-extrabold text-white block">{truckUtilization}% Utilized</span>
+              <span className="text-[10px] text-slate-500 font-bold">({busyTrucksCount}/{totalTrucksCount} Active)</span>
+            </div>
           </div>
           
           <div className="divide-y divide-slate-800/40 space-y-3">
@@ -370,53 +444,30 @@ export default function ExecutiveDashboard({ jobs, trucks, companyName, setActiv
           </div>
         </div>
 
-        {/* Job Profitability Ledger */}
-        <div className="glass-panel p-6 rounded-2xl space-y-4">
+        {/* Live Logs panel */}
+        <div className="glass-panel p-6 rounded-2xl flex flex-col space-y-4">
           <div>
             <h4 className="text-base font-bold text-white flex items-center gap-2">
-              <DollarSign className="w-5 h-5 text-indigo-400" />
-              Job Profitability Ledger
+              <Clock className="w-5 h-5 text-indigo-400" />
+              Live Operations Feed
             </h4>
-            <p className="text-xs text-slate-400">Profit breakdown for scheduled and completed moves</p>
+            <p className="text-xs text-slate-400">Chronological dispatcher actions</p>
           </div>
 
-          <div className="divide-y divide-slate-800/40 space-y-3 max-h-[280px] overflow-y-auto pr-1">
-            {(() => {
-              const activeProfitJobs = jobs.filter(j => j.status === 'Completed' || j.status === 'Scheduled');
-              
-              if (activeProfitJobs.length === 0) {
-                return (
-                  <div className="text-center py-10 text-xs text-slate-500 font-bold uppercase tracking-wider">
-                    No active financial logs recorded
-                  </div>
-                );
-              }
-
-              return activeProfitJobs.map(job => {
-                const revenue = job.revenue || job.estimateAmount || 0;
-                const wages = (job.crewSize || 3) * (job.durationHours || 6) * (job.crewHourlyRate || 25);
-                const profit = revenue - wages;
-                const margin = Math.round((profit / revenue) * 100) || 0;
-
-                return (
-                  <div key={job.id} className="pt-3 first:pt-0 flex justify-between items-center text-xs font-semibold">
-                    <div>
-                      <span className="text-white font-extrabold">{job.clientName}</span>
-                      <div className="flex gap-2 text-[10px] text-slate-500 mt-1 font-medium">
-                        <span>Rev: <strong className="text-slate-300">{formatCurrency(revenue)}</strong></span>
-                        <span>Labor: <strong className="text-red-400">-{formatCurrency(wages)}</strong></span>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <span className={profit >= 0 ? "text-emerald-400 block font-bold" : "text-red-400 block font-bold"}>
-                        {formatCurrency(profit)}
-                      </span>
-                      <span className="text-[9px] text-slate-500 font-bold block">{margin}% Net</span>
-                    </div>
-                  </div>
-                );
-              });
-            })()}
+          <div className="space-y-4 overflow-y-auto flex-1 pr-1 max-h-[300px]">
+            {activityLogs.map((log) => (
+              <div key={log.id} className="flex gap-3 group">
+                <div className="w-8 h-8 rounded-lg bg-slate-900 border border-slate-800/80 flex items-center justify-center flex-shrink-0 text-slate-400 group-hover:border-brand-500/30 group-hover:text-brand-400 transition-colors">
+                  <Clock className="w-3.5 h-3.5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-slate-200 group-hover:text-white transition-colors truncate">
+                    {log.message}
+                  </p>
+                  <span className="text-[10px] text-slate-500 mt-1 block">{log.time}</span>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </div>
