@@ -32,6 +32,7 @@ export default function AddJobModal({ onClose, onSubmit }) {
   const [mapClickTarget, setMapClickTarget] = useState('origin'); // 'origin' | 'destination'
   const [mapCenter, setMapCenter] = useState({ lat: 30.2672, lng: -97.7431 });
   const [mapZoom, setMapZoom] = useState(11);
+  const [activeMobileTab, setActiveMobileTab] = useState('form'); // 'form' | 'map'
   const geocoderRef = useRef(null);
 
   const onOriginLoad = (autocomplete) => setOriginAutocomplete(autocomplete);
@@ -168,11 +169,39 @@ export default function AddJobModal({ onClose, onSubmit }) {
           </button>
         </div>
 
+        {/* Mobile Tab Headers */}
+        <div className="flex border-b border-slate-800/60 bg-slate-950/20 lg:hidden text-xs">
+          <button
+            type="button"
+            onClick={() => setActiveMobileTab('form')}
+            className={`flex-1 py-3.5 text-center font-extrabold transition-all border-b-2 uppercase tracking-wider ${
+              activeMobileTab === 'form'
+                ? 'border-brand-500 text-brand-400 bg-brand-500/5'
+                : 'border-transparent text-slate-500 hover:text-slate-350'
+            }`}
+          >
+            Form Details
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveMobileTab('map')}
+            className={`flex-1 py-3.5 text-center font-extrabold transition-all border-b-2 uppercase tracking-wider ${
+              activeMobileTab === 'map'
+                ? 'border-brand-500 text-brand-400 bg-brand-500/5'
+                : 'border-transparent text-slate-500 hover:text-slate-300'
+            }`}
+          >
+            Interactive Route Map
+          </button>
+        </div>
+
         {/* Dual Pane Body */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 h-full max-h-[80vh] overflow-hidden">
+        <div className="grid grid-cols-1 lg:grid-cols-2 h-[60vh] lg:h-[75vh] overflow-hidden">
           
           {/* LEFT PANE - Form */}
-          <form onSubmit={handleSubmit} className="p-6 space-y-4 overflow-y-auto border-r border-slate-800/60">
+          <form onSubmit={handleSubmit} className={`p-6 space-y-4 overflow-y-auto border-r border-slate-800/60 ${
+            activeMobileTab === 'form' ? 'block' : 'hidden lg:block'
+          }`}>
             {/* Client Details */}
             <div className="space-y-3">
               <h4 className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Client Info</h4>
@@ -377,7 +406,9 @@ export default function AddJobModal({ onClose, onSubmit }) {
           </form>
 
           {/* RIGHT PANE - Interactive Map */}
-          <div className="bg-slate-900/40 relative flex flex-col h-[50vh] lg:h-auto min-h-[400px]">
+          <div className={`bg-slate-900/40 relative flex flex-col h-full lg:h-auto min-h-[400px] ${
+            activeMobileTab === 'map' ? 'flex' : 'hidden lg:flex'
+          }`}>
             
             {/* Map Click Targeting Toggle */}
             <div className="absolute top-4 left-4 right-4 z-10 flex items-center justify-between bg-slate-950/90 backdrop-blur-md p-2 rounded-xl border border-slate-800 shadow-xl">

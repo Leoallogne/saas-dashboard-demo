@@ -95,6 +95,36 @@ export default function App() {
     return 'Houston Movers';
   });
 
+  const [logo, setLogo] = useState(() => {
+    try {
+      const saved = localStorage.getItem('moveops_company_logo');
+      if (saved) return saved;
+    } catch (e) {
+      console.error("Failed to read company logo:", e);
+    }
+    return '';
+  });
+
+  const [hourlyRate, setHourlyRate] = useState(() => {
+    try {
+      const saved = localStorage.getItem('moveops_hourly_rate');
+      if (saved) return Number(saved);
+    } catch (e) {
+      console.error("Failed to read hourly rate:", e);
+    }
+    return 25;
+  });
+
+  const [fuelRate, setFuelRate] = useState(() => {
+    try {
+      const saved = localStorage.getItem('moveops_fuel_rate');
+      if (saved) return Number(saved);
+    } catch (e) {
+      console.error("Failed to read fuel rate:", e);
+    }
+    return 1.50;
+  });
+
   const [selectedJob, setSelectedJob] = useState(null);
 
   // 2. Synchronize States safely in useEffect
@@ -106,18 +136,33 @@ export default function App() {
         localStorage.setItem('moveops_pipelines', JSON.stringify(pipelines));
         localStorage.setItem('moveops_active_pipeline_id', activePipelineId);
         localStorage.setItem('moveops_company_name', companyName);
+        localStorage.setItem('moveops_company_logo', logo);
+        localStorage.setItem('moveops_hourly_rate', hourlyRate.toString());
+        localStorage.setItem('moveops_fuel_rate', fuelRate.toString());
       } catch (e) {
         console.error("Write error on localStorage:", e);
       }
     }
-  }, [jobs, trucks, pipelines, activePipelineId, companyName, isLoading]);
+  }, [jobs, trucks, pipelines, activePipelineId, companyName, logo, hourlyRate, fuelRate, isLoading]);
 
-  // Simulate loading state for 1.2s to present professional skeleton load
+  // Simulate loading state for 1.2s to present professional skeleton load and handle responsive sidebar
   useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 1024) {
+        setSidebarCollapsed(true);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    handleResize(); // trigger initially
+    
     const timer = setTimeout(() => {
       setIsLoading(false);
     }, 1200);
-    return () => clearTimeout(timer);
+    
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('resize', handleResize);
+    };
   }, []);
 
   // Toast helpers
@@ -401,6 +446,8 @@ export default function App() {
             companyName={companyName}
             setActiveTab={setActiveTab}
             formatCurrency={formatCurrency}
+            hourlyRate={hourlyRate}
+            fuelRate={fuelRate}
           />
         );
       case 'pipeline':
@@ -434,6 +481,8 @@ export default function App() {
             jobs={activePipelineJobs}
             formatCurrency={formatCurrency}
             addToast={addToast}
+            hourlyRate={hourlyRate}
+            fuelRate={fuelRate}
           />
         );
       case 'profile':
@@ -442,6 +491,12 @@ export default function App() {
             companyName={companyName}
             setCompanyName={setCompanyName}
             addToast={addToast}
+            logo={logo}
+            setLogo={setLogo}
+            hourlyRate={hourlyRate}
+            setHourlyRate={setHourlyRate}
+            fuelRate={fuelRate}
+            setFuelRate={setFuelRate}
           />
         );
       default:
@@ -479,6 +534,7 @@ export default function App() {
         activePipelineId={activePipelineId}
         setActivePipelineId={setActivePipelineId}
         onCreatePipeline={handleCreatePipeline}
+        logo={logo}
       />
 
       {/* Main Panel Content */}
@@ -551,6 +607,7 @@ export default function App() {
           onUpdateJobProfitability={handleUpdateJobProfitability}
           trucks={trucks}
           formatCurrency={formatCurrency}
+          fuelRate={fuelRate}
         />
       )}
 

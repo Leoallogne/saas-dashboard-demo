@@ -223,7 +223,7 @@ export default function JobPipeline({ jobs, onSelectJob, onUpdateJobStatus, onAd
       </div>
 
       {/* Kanban Board Container */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 items-start">
+      <div className="flex lg:grid flex-row lg:grid-cols-4 gap-5 items-start overflow-x-auto pb-4 lg:pb-0 snap-x hide-scrollbar">
         {columns.map((col) => {
           const colJobs = getJobsByStatus(col.id);
           const colRevenue = colJobs.reduce((sum, j) => sum + (j.revenue || j.estimateAmount || 0), 0);
@@ -235,7 +235,7 @@ export default function JobPipeline({ jobs, onSelectJob, onUpdateJobStatus, onAd
               onDragOver={(e) => handleDragOver(e, col.id)}
               onDragLeave={handleDragLeave}
               onDrop={(e) => handleDrop(e, col.id)}
-              className={`flex flex-col rounded-2xl border p-4 max-h-[75vh] transition-all duration-200 ${
+              className={`flex flex-col rounded-2xl border p-4 max-h-[75vh] transition-all duration-200 w-[285px] sm:w-[320px] shrink-0 snap-start lg:w-auto ${
                 isDraggingOver 
                   ? 'border-brand-500 bg-brand-950/20 scale-[1.01] ring-1 ring-brand-500/20' 
                   : `${col.borderColor} ${col.bgColor}`

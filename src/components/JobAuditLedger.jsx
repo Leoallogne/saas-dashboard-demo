@@ -15,10 +15,11 @@ import {
   FileText,
   User,
   CheckCircle,
-  Filter
+  Filter,
+  Mail
 } from 'lucide-react';
 
-export default function JobAuditLedger({ jobs, formatCurrency, addToast }) {
+export default function JobAuditLedger({ jobs, formatCurrency, addToast, hourlyRate, fuelRate }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -44,7 +45,7 @@ export default function JobAuditLedger({ jobs, formatCurrency, addToast }) {
     const billings = job.revenue || job.estimateAmount || 0;
     const crewSize = job.crewSize || 3;
     const durationHours = job.durationHours || 6;
-    const crewHourlyRate = job.crewHourlyRate || 25;
+    const crewHourlyRate = job.crewHourlyRate || hourlyRate;
     const wages = crewSize * durationHours * crewHourlyRate;
     const profit = billings - wages;
     const margin = billings > 0 ? (profit / billings) * 100 : 0;
@@ -77,11 +78,11 @@ export default function JobAuditLedger({ jobs, formatCurrency, addToast }) {
   const sortedJobs = [...filteredCompletedJobs].sort((a, b) => {
     let valA, valB;
     const billingsA = a.revenue || a.estimateAmount || 0;
-    const wagesA = (a.crewSize || 3) * (a.durationHours || 6) * (a.crewHourlyRate || 25);
+    const wagesA = (a.crewSize || 3) * (a.durationHours || 6) * (a.crewHourlyRate || hourlyRate);
     const profitA = billingsA - wagesA;
 
     const billingsB = b.revenue || b.estimateAmount || 0;
-    const wagesB = (b.crewSize || 3) * (b.durationHours || 6) * (b.crewHourlyRate || 25);
+    const wagesB = (b.crewSize || 3) * (b.durationHours || 6) * (b.crewHourlyRate || hourlyRate);
     const profitB = billingsB - wagesB;
 
     switch (sortField) {
@@ -122,7 +123,7 @@ export default function JobAuditLedger({ jobs, formatCurrency, addToast }) {
   // Stats for Filtered Jobs
   const totalRevenue = filteredCompletedJobs.reduce((sum, j) => sum + (j.revenue || j.estimateAmount || 0), 0);
   const totalWages = filteredCompletedJobs.reduce((sum, j) => 
-    sum + ((j.crewSize || 3) * (j.durationHours || 6) * (j.crewHourlyRate || 25)), 0
+    sum + ((j.crewSize || 3) * (j.durationHours || 6) * (j.crewHourlyRate || hourlyRate)), 0
   );
   const netProfit = totalRevenue - totalWages;
   const avgMargin = totalRevenue > 0 ? Math.round((netProfit / totalRevenue) * 100) : 0;
@@ -360,7 +361,7 @@ export default function JobAuditLedger({ jobs, formatCurrency, addToast }) {
                   const billings = job.revenue || job.estimateAmount || 0;
                   const crewSize = job.crewSize || 3;
                   const durationHours = job.durationHours || 6;
-                  const crewHourlyRate = job.crewHourlyRate || 25;
+                  const crewHourlyRate = job.crewHourlyRate || hourlyRate;
                   const wages = crewSize * durationHours * crewHourlyRate;
                   const profit = billings - wages;
                   const margin = Math.round((profit / billings) * 100) || 0;
@@ -502,7 +503,7 @@ export default function JobAuditLedger({ jobs, formatCurrency, addToast }) {
 
         const billings = invJob.revenue || invJob.estimateAmount || 0;
         const distanceMiles = (invJob.clientName.length * 7) % 45 + 15;
-        const fuelCost = distanceMiles * 1.50;
+        const fuelCost = distanceMiles * fuelRate;
         const baseEstimate = billings - fuelCost;
         const isReconciled = reconciledJobIds.includes(invJob.id);
 
@@ -565,7 +566,7 @@ export default function JobAuditLedger({ jobs, formatCurrency, addToast }) {
                     <span className="text-white">{formatCurrency(baseEstimate)}</span>
                   </div>
                   <div className="flex justify-between py-2.5">
-                    <span className="text-slate-400">Fuel Surcharge ({distanceMiles} miles @ $1.50/mi)</span>
+                    <span className="text-slate-400">Fuel Surcharge ({distanceMiles} miles @ ${fuelRate.toFixed(2)}/mi)</span>
                     <span className="text-white">{formatCurrency(fuelCost)}</span>
                   </div>
                   <div className="flex justify-between py-2.5 text-xs font-black border-t border-slate-800 pt-3">

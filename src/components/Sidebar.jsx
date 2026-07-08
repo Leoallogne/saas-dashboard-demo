@@ -28,7 +28,8 @@ export default function Sidebar({
   pipelines = [],
   activePipelineId,
   setActivePipelineId,
-  onCreatePipeline
+  onCreatePipeline,
+  logo
 }) {
   const [isEditingBrand, setIsEditingBrand] = useState(false);
   const [tempBrandName, setTempBrandName] = useState(companyName);
@@ -67,9 +68,17 @@ export default function Sidebar({
         {/* Branding & Logo */}
         <div className={`flex flex-col gap-4 border-b border-slate-800/50 pb-5 ${isCollapsed ? 'items-center' : ''}`}>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-sky-400 flex items-center justify-center shadow-lg shadow-brand-500/20 flex-shrink-0">
-              <Truck className="w-6 h-6 text-white" />
-            </div>
+            {logo ? (
+              <img 
+                src={logo} 
+                alt="Brand Logo" 
+                className="w-10 h-10 rounded-xl object-cover shadow-lg shadow-brand-500/20 flex-shrink-0 border border-slate-800" 
+              />
+            ) : (
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-sky-400 flex items-center justify-center shadow-lg shadow-brand-500/20 flex-shrink-0">
+                <Truck className="w-6 h-6 text-white" />
+              </div>
+            )}
             {!isCollapsed && (
               <div>
                 <h1 className="font-bold text-lg leading-tight tracking-tight text-white">MoveOps</h1>

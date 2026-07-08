@@ -27,7 +27,8 @@ export default function JobDetailsModal({
   onAssignTruck, 
   trucks,
   formatCurrency,
-  onUpdateJobProfitability
+  onUpdateJobProfitability,
+  fuelRate
 }) {
   const [directionsResponse, setDirectionsResponse] = useState(null);
   const [distance, setDistance] = useState('');
@@ -73,7 +74,7 @@ export default function JobDetailsModal({
   const distanceMilesFallback = (nameLength * 7) % 45 + 15; // deterministic miles (15 - 60 mi)
   const distanceMiles = distance ? parseFloat(distance.replace(/[^\d.-]/g, '')) : distanceMilesFallback;
   const displayDistance = distance || `${distanceMilesFallback} mi`;
-  const fuelCost = distanceMiles * 1.50;
+  const fuelCost = distanceMiles * fuelRate;
   const travelTimeMinutes = distanceMiles * 1.5;
   const hoursPart = Math.floor(travelTimeMinutes / 60);
   const minsPart = Math.round(travelTimeMinutes % 60);

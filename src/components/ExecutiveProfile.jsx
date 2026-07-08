@@ -18,13 +18,15 @@ import {
   Settings,
   Truck,
   PlusCircle,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Search
 } from 'lucide-react';
 
-export default function ExecutiveProfile({ companyName, setCompanyName, addToast }) {
+export default function ExecutiveProfile({ companyName, setCompanyName, addToast, logo, setLogo, hourlyRate, setHourlyRate, fuelRate, setFuelRate }) {
   // Tabs State
   const [activeTab, setActiveTab] = useState('profile'); // 'profile' | 'manual'
   const [activeManualSection, setActiveManualSection] = useState('getting-started');
+  const [manualSearch, setManualSearch] = useState('');
 
   // Profile States
   const [profile, setProfile] = useState({
@@ -300,12 +302,48 @@ export default function ExecutiveProfile({ companyName, setCompanyName, addToast
             {/* Profile Card */}
             <div className="glass-panel p-6 rounded-2xl space-y-5 border border-slate-800/60">
               <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-brand-600 to-sky-400 flex items-center justify-center font-black text-white text-xl shadow-lg shadow-brand-500/20">
-                  {profile.name.split(' ').map(n => n[0]).join('')}
-                </div>
-                <div>
-                  <h3 className="text-sm font-bold text-white leading-none">{profile.name}</h3>
-                  <span className="text-[10px] text-sky-400 font-extrabold uppercase mt-1 block tracking-wider">{profile.role}</span>
+                {logo ? (
+                  <img src={logo} alt="Company Logo" className="w-14 h-14 rounded-2xl object-cover shadow-lg border border-slate-800" />
+                ) : (
+                  <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-brand-600 to-sky-400 flex items-center justify-center font-black text-white text-xl shadow-lg shadow-brand-500/20">
+                    {profile.name.split(' ').map(n => n[0]).join('')}
+                  </div>
+                )}
+                <div className="flex-1">
+                  <h3 className="text-sm font-bold text-white leading-none">{companyName} Branding</h3>
+                  <div className="flex items-center gap-2 mt-2">
+                    <label className="px-2.5 py-1.5 bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-lg text-[10px] font-bold text-slate-300 hover:text-white cursor-pointer transition-all">
+                      Upload Logo
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        onChange={(e) => {
+                          const file = e.target.files[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onloadend = () => {
+                              setLogo(reader.result);
+                              addToast('success', 'Logo Uploaded', 'Company logo updated successfully.');
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }} 
+                        className="hidden" 
+                      />
+                    </label>
+                    {logo && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setLogo('');
+                          addToast('info', 'Logo Removed', 'Company logo reset to default.');
+                        }}
+                        className="px-2.5 py-1.5 bg-red-950/20 border border-red-500/20 hover:border-red-500/50 rounded-lg text-[10px] font-bold text-red-400 transition-all cursor-pointer"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -341,6 +379,30 @@ export default function ExecutiveProfile({ companyName, setCompanyName, addToast
                     className="w-full bg-slate-950 text-xs text-white border border-slate-800 rounded-lg p-2.5 focus:outline-none focus:border-brand-500/50 transition-all font-medium"
                     required
                   />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Mover Wage ($/hr)</label>
+                    <input
+                      type="number"
+                      value={hourlyRate}
+                      onChange={(e) => setHourlyRate(Number(e.target.value) || 0)}
+                      className="w-full bg-slate-950 text-xs text-white border border-slate-800 rounded-lg p-2.5 focus:outline-none focus:border-brand-500/50 transition-all font-medium"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Fuel Rate ($/mi)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={fuelRate}
+                      onChange={(e) => setFuelRate(Number(e.target.value) || 0)}
+                      className="w-full bg-slate-950 text-xs text-white border border-slate-800 rounded-lg p-2.5 focus:outline-none focus:border-brand-500/50 transition-all font-medium"
+                      required
+                    />
+                  </div>
                 </div>
 
                 <button
@@ -416,6 +478,31 @@ export default function ExecutiveProfile({ companyName, setCompanyName, addToast
                 </button>
               </form>
             </div>
+
+            {/* Simulated Active Sessions */}
+            <div className="glass-panel p-6 rounded-2xl space-y-4 border border-slate-800/60 h-fit col-span-1 md:col-span-2">
+              <h4 className="text-xs uppercase font-extrabold text-slate-400 tracking-wider flex items-center gap-1.5 mb-2">
+                <Shield className="w-4 h-4 text-brand-400" />
+                Simulated Active Security Sessions
+              </h4>
+              <div className="divide-y divide-slate-800/40 space-y-3">
+                {[
+                  { device: 'Chrome on Windows (Austin, TX)', status: 'Active Now', time: 'IP: 192.168.1.145' },
+                  { device: 'Safari on iPhone (Austin, TX)', status: 'Active 2h ago', time: 'IP: 172.56.21.9' },
+                  { device: 'Firefox on macOS (Dallas, TX)', status: 'Active 2 days ago', time: 'IP: 104.244.75.12' }
+                ].map((session, index) => (
+                  <div key={index} className="pt-3 first:pt-0 flex justify-between items-center text-xs font-semibold">
+                    <div>
+                      <span className="text-white font-extrabold block">{session.device}</span>
+                      <span className="text-[10px] text-slate-500 block mt-0.5">{session.time}</span>
+                    </div>
+                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold ${index === 0 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-slate-900 text-slate-500 border border-slate-850'}`}>
+                      {session.status}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         )}
 
@@ -424,9 +511,19 @@ export default function ExecutiveProfile({ companyName, setCompanyName, addToast
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 animate-fade-in">
             {/* Sidebar Manual Navigation */}
             <div className="md:col-span-1 space-y-2">
-              <h3 className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest px-2 mb-3">Table of Contents</h3>
+              <h3 className="text-[10px] font-extrabold text-slate-500 uppercase tracking-widest px-2 mb-2">Table of Contents</h3>
+              <div className="relative mb-3 px-1">
+                <Search className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  placeholder="Search manual..."
+                  value={manualSearch}
+                  onChange={(e) => setManualSearch(e.target.value)}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-8 pr-3 py-1.5 text-[10px] text-white placeholder-slate-600 focus:outline-none focus:border-brand-500/50"
+                />
+              </div>
               <div className="space-y-1.5">
-                {manualSections.map((section) => {
+                {manualSections.filter(s => s.title.toLowerCase().includes(manualSearch.toLowerCase()) || s.id.toLowerCase().includes(manualSearch.toLowerCase())).map((section) => {
                   const IconComp = section.icon;
                   const isActive = activeManualSection === section.id;
                   return (

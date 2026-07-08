@@ -24,7 +24,7 @@ import {
 } from 'recharts';
 import { activityLogs } from '../data/mockData';
 
-export default function ExecutiveDashboard({ jobs, trucks, companyName, setActiveTab, formatCurrency }) {
+export default function ExecutiveDashboard({ jobs, trucks, companyName, setActiveTab, formatCurrency, hourlyRate, fuelRate }) {
   const [chartMetric, setChartMetric] = useState('revenue'); // 'revenue', 'fuel', 'profit'
   
   // Quick Quote Generator State
@@ -52,10 +52,17 @@ export default function ExecutiveDashboard({ jobs, trucks, companyName, setActiv
   // 2. Calculate operational profitability
   const totalWages = jobs
     .filter(j => j.status === 'Completed' || j.status === 'Scheduled')
-    .reduce((sum, j) => sum + ((j.crewSize || 3) * (j.durationHours || 6) * (j.crewHourlyRate || 25)), 0);
+    .reduce((sum, j) => sum + ((j.crewSize || 3) * (j.durationHours || 6) * (j.crewHourlyRate || hourlyRate)), 0);
 
-  // Fuel Expenses Estimate (approx 15% of revenue for demo logistics)
-  const totalFuel = Math.round(totalRevenue * 0.15);
+  // Fuel Expenses calculated dynamically using fuelRate
+  const totalFuel = Math.round(
+    jobs
+      .filter(j => j.status === 'Completed' || j.status === 'Scheduled')
+      .reduce((sum, j) => {
+        const dist = (j.clientName.length * 7) % 45 + 15;
+        return sum + (dist * fuelRate);
+      }, 0)
+  );
 
   const netProfit = totalRevenue - totalWages - totalFuel;
   const avgMargin = totalRevenue > 0 ? Math.round((netProfit / totalRevenue) * 100) : 0;
@@ -82,7 +89,7 @@ export default function ExecutiveDashboard({ jobs, trucks, companyName, setActiv
   // Quick Quote Calculation Logic
   const calculateQuote = () => {
     const baseRate = parseInt(quoteRooms) * 350;
-    const distanceCost = (parseInt(quoteDistance) || 0) * 1.5;
+    const distanceCost = (parseInt(quoteDistance) || 0) * fuelRate;
     const packingCost = quotePacking ? (parseInt(quoteRooms) * 150) : 0;
     return baseRate + distanceCost + packingCost;
   };
