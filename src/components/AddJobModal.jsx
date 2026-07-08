@@ -17,7 +17,7 @@ export default function AddJobModal({ onClose, onSubmit }) {
 
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
-    googleMapsApiKey: 'AIzaSy_DEV_KEY_PLACEHOLDER_999',
+    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || 'AIzaSy_DEV_KEY_PLACEHOLDER_999',
     libraries: ['places']
   });
 
