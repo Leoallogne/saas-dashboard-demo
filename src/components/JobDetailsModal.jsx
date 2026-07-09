@@ -20,6 +20,8 @@ import {
 } from 'lucide-react';
 import { useJsApiLoader, GoogleMap, DirectionsRenderer } from '@react-google-maps/api';
 
+const GOOGLE_MAPS_LIBRARIES = ['places'];
+
 export default function JobDetailsModal({ 
   job, 
   onClose, 
@@ -38,7 +40,7 @@ export default function JobDetailsModal({
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
     googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || 'AIzaSy_DEV_KEY_PLACEHOLDER_999',
-    libraries: ['places']
+    libraries: GOOGLE_MAPS_LIBRARIES
   });
 
   useEffect(() => {

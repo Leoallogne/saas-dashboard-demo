@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { X, Plus, Calendar, DollarSign, MapPin, Layers, Phone, Mail, FileText, Navigation, Map, Search } from 'lucide-react';
 import { useJsApiLoader, Autocomplete, GoogleMap, DirectionsRenderer } from '@react-google-maps/api';
 
+const GOOGLE_MAPS_LIBRARIES = ['places'];
+
 export default function AddJobModal({ onClose, onSubmit }) {
   const [formData, setFormData] = useState({
     clientName: '',
@@ -18,7 +20,7 @@ export default function AddJobModal({ onClose, onSubmit }) {
   const { isLoaded } = useJsApiLoader({
     id: 'google-map-script',
     googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || 'AIzaSy_DEV_KEY_PLACEHOLDER_999',
-    libraries: ['places']
+    libraries: GOOGLE_MAPS_LIBRARIES
   });
 
   const [originAutocomplete, setOriginAutocomplete] = useState(null);
@@ -43,7 +45,7 @@ export default function AddJobModal({ onClose, onSubmit }) {
   const onOriginPlaceChanged = () => {
     if (originAutocomplete) {
       const place = originAutocomplete.getPlace();
-      if (place.formatted_address) {
+      if (place && place.formatted_address) {
         setFormData(prev => ({ ...prev, origin: place.formatted_address }));
         if (place.geometry?.location) {
           setMapCenter({
@@ -59,7 +61,7 @@ export default function AddJobModal({ onClose, onSubmit }) {
   const onDestPlaceChanged = () => {
     if (destAutocomplete) {
       const place = destAutocomplete.getPlace();
-      if (place.formatted_address) {
+      if (place && place.formatted_address) {
         setFormData(prev => ({ ...prev, destination: place.formatted_address }));
         if (place.geometry?.location) {
           setMapCenter({
@@ -75,7 +77,7 @@ export default function AddJobModal({ onClose, onSubmit }) {
   const onMapSearchPlaceChanged = () => {
     if (mapSearchAutocomplete) {
       const place = mapSearchAutocomplete.getPlace();
-      if (place.geometry?.location) {
+      if (place && place.geometry?.location) {
         const newCoord = {
           lat: place.geometry.location.lat(),
           lng: place.geometry.location.lng()
