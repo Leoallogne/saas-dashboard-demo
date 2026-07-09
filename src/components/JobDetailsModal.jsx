@@ -16,7 +16,8 @@ import {
   AlertTriangle,
   Check,
   ExternalLink,
-  Navigation
+  Navigation,
+  Map
 } from 'lucide-react';
 import { useJsApiLoader, GoogleMap, DirectionsRenderer } from '@react-google-maps/api';
 
@@ -37,11 +38,16 @@ export default function JobDetailsModal({
   const [duration, setDuration] = useState('');
   const [travelMode, setTravelMode] = useState('DRIVING'); // DRIVING, WALKING, BICYCLING, TRANSIT
   
-  const { isLoaded } = useJsApiLoader({
+  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
+  const isApiKeyPlaceholder = !apiKey || apiKey.includes('YOUR_ACTUAL_KEY_HERE') || apiKey.includes('DEV_KEY_PLACEHOLDER');
+
+  const { isLoaded: mapsApiLoaded } = useJsApiLoader({
     id: 'google-map-script',
-    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || 'AIzaSy_DEV_KEY_PLACEHOLDER_999',
+    googleMapsApiKey: isApiKeyPlaceholder ? '' : apiKey,
     libraries: GOOGLE_MAPS_LIBRARIES
   });
+
+  const isLoaded = !isApiKeyPlaceholder && mapsApiLoaded;
 
   useEffect(() => {
     if (isLoaded && job?.origin && job?.destination && window.google) {
@@ -233,8 +239,14 @@ export default function JobDetailsModal({
             {/* Google Map Section */}
             <div className="h-64 w-full bg-slate-950/90 rounded-xl border border-slate-850 relative overflow-hidden mt-3 shadow-inner">
               {!isLoaded ? (
-                <div className="w-full h-full flex items-center justify-center text-slate-500 text-xs font-semibold gap-2 animate-pulse">
-                  <Navigation className="w-4 h-4" /> Memuat Peta...
+                <div className="w-full h-full bg-slate-950 flex flex-col items-center justify-center text-center p-6 space-y-3">
+                  <Map className="w-5 h-5 text-brand-400" />
+                  <div className="space-y-1">
+                    <h5 className="text-[11px] font-extrabold text-white uppercase tracking-wider">Map Demo Mode Active</h5>
+                    <p className="text-[9px] text-slate-500 leading-relaxed font-medium max-w-xs mx-auto">
+                      Google Maps is running in demo mode. Please set a valid API key in your <code className="text-brand-400">.env</code> file to enable live address autocomplete and path routing.
+                    </p>
+                  </div>
                 </div>
               ) : (
                 <GoogleMap

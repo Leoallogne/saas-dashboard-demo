@@ -17,11 +17,16 @@ export default function AddJobModal({ onClose, onSubmit }) {
     date: new Date().toISOString().split('T')[0] // default to today
   });
 
-  const { isLoaded } = useJsApiLoader({
+  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY || '';
+  const isApiKeyPlaceholder = !apiKey || apiKey.includes('YOUR_ACTUAL_KEY_HERE') || apiKey.includes('DEV_KEY_PLACEHOLDER');
+
+  const { isLoaded: mapsApiLoaded } = useJsApiLoader({
     id: 'google-map-script',
-    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY || 'AIzaSy_DEV_KEY_PLACEHOLDER_999',
+    googleMapsApiKey: isApiKeyPlaceholder ? '' : apiKey,
     libraries: GOOGLE_MAPS_LIBRARIES
   });
+
+  const isLoaded = !isApiKeyPlaceholder && mapsApiLoaded;
 
   const [originAutocomplete, setOriginAutocomplete] = useState(null);
   const [destAutocomplete, setDestAutocomplete] = useState(null);
@@ -488,8 +493,22 @@ export default function AddJobModal({ onClose, onSubmit }) {
             {/* Map Frame */}
             <div className="flex-1 w-full h-full relative">
               {!isLoaded ? (
-                <div className="w-full h-full flex items-center justify-center text-slate-500 text-xs font-semibold gap-2 animate-pulse">
-                  <Navigation className="w-4 h-4" /> Memuat Peta Interaktif...
+                <div className="w-full h-full bg-slate-950 flex flex-col items-center justify-center text-center p-6 space-y-4">
+                  <div className="w-12 h-12 bg-slate-900 border border-slate-800 rounded-xl flex items-center justify-center text-slate-500">
+                    <Map className="w-6 h-6 text-brand-400" />
+                  </div>
+                  <div className="space-y-1.5 max-w-xs">
+                    <h5 className="text-xs font-extrabold text-white uppercase tracking-wider">Map Demo Mode Active</h5>
+                    <p className="text-[10px] text-slate-500 leading-relaxed font-medium">
+                      Google Maps is running in demo mode. Please set a valid API key in your <code className="text-brand-400">.env</code> file to enable live address autocomplete and path routing.
+                    </p>
+                  </div>
+                  <div className="bg-slate-900/60 border border-slate-850 p-3 rounded-lg text-[9.5px] text-left text-slate-400 max-w-xs space-y-1.5 leading-relaxed">
+                    <span className="font-extrabold text-white block mb-0.5">Setup Guide:</span>
+                    1. Open the <code className="text-brand-400">.env</code> file<br />
+                    2. Replace the value of <code className="text-brand-400">VITE_GOOGLE_MAPS_API_KEY</code> with your real key<br />
+                    3. Restart your dev server (<code className="text-slate-300">npm run dev</code>)
+                  </div>
                 </div>
               ) : (
                 <GoogleMap
