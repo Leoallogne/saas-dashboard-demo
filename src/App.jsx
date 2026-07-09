@@ -309,22 +309,25 @@ export default function App() {
     );
   };
 
-  // Update Profitability Slider Variables
-  const handleUpdateJobProfitability = (jobId, profitabilityData) => {
+  // Update job properties immutably
+  const handleUpdateJobDetails = (jobId, updatedFields) => {
     setJobs(prevJobs => 
       prevJobs.map(job => 
         job.id === jobId 
-          ? { ...job, ...profitabilityData } 
+          ? { ...job, ...updatedFields } 
           : job
       )
     );
 
     // Sync modal selection if open
     if (selectedJob && selectedJob.id === jobId) {
-      setSelectedJob(prev => ({ ...prev, ...profitabilityData }));
+      setSelectedJob(prev => ({ ...prev, ...updatedFields }));
     }
 
-    addToast('info', 'Profitability Updated', `Recalculated wages & net profit for ${selectedJob?.clientName || 'job'}`);
+    // Trigger toast only if updating crew sizes/rates (profitability settings)
+    if (updatedFields.crewSize || updatedFields.durationHours || updatedFields.crewHourlyRate || updatedFields.crewMembers) {
+      addToast('info', 'Profitability Updated', `Recalculated wages & net profit for ${selectedJob?.clientName || 'job'}`);
+    }
   };
 
   // Create Workspace / Pipeline Branch
@@ -473,6 +476,7 @@ export default function App() {
             onUpdateJobStatus={handleUpdateJobStatus}
             onToggleMaintenance={handleToggleMaintenance}
             formatCurrency={formatCurrency}
+            onUpdateJobDetails={handleUpdateJobDetails}
           />
         );
       case 'audit':
@@ -604,7 +608,7 @@ export default function App() {
           onClose={() => setSelectedJob(null)}
           onUpdateJobStatus={handleUpdateJobStatus}
           onAssignTruck={handleAssignTruck}
-          onUpdateJobProfitability={handleUpdateJobProfitability}
+          onUpdateJobDetails={handleUpdateJobDetails}
           trucks={trucks}
           formatCurrency={formatCurrency}
           fuelRate={fuelRate}

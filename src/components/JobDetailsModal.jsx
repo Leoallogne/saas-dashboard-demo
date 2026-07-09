@@ -27,7 +27,7 @@ export default function JobDetailsModal({
   onAssignTruck, 
   trucks,
   formatCurrency,
-  onUpdateJobProfitability,
+  onUpdateJobDetails,
   fuelRate
 }) {
   const [directionsResponse, setDirectionsResponse] = useState(null);
@@ -87,7 +87,7 @@ export default function JobDetailsModal({
       ? assignedCrew.filter(c => c !== crewName)
       : [...assignedCrew, crewName];
     
-    onUpdateJobProfitability(job.id, { crewMembers: updatedCrew });
+    onUpdateJobDetails(job.id, { crewMembers: updatedCrew });
   };
 
   const getStatusBadge = (status) => {
@@ -388,7 +388,7 @@ export default function JobDetailsModal({
                 <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Crew Size</label>
                 <select
                   value={job.crewSize || 3}
-                  onChange={(e) => onUpdateJobProfitability(job.id, { 
+                  onChange={(e) => onUpdateJobDetails(job.id, { 
                     crewSize: Number(e.target.value),
                     durationHours: job.durationHours || 6,
                     crewHourlyRate: job.crewHourlyRate || 25
@@ -406,7 +406,7 @@ export default function JobDetailsModal({
                 <label className="text-[10px] text-slate-500 font-bold uppercase tracking-wider block">Est. Duration</label>
                 <select
                   value={job.durationHours || 6}
-                  onChange={(e) => onUpdateJobProfitability(job.id, { 
+                  onChange={(e) => onUpdateJobDetails(job.id, { 
                     crewSize: job.crewSize || 3,
                     durationHours: Number(e.target.value),
                     crewHourlyRate: job.crewHourlyRate || 25
@@ -425,7 +425,7 @@ export default function JobDetailsModal({
                 <input
                   type="number"
                   value={job.crewHourlyRate || 25}
-                  onChange={(e) => onUpdateJobProfitability(job.id, { 
+                  onChange={(e) => onUpdateJobDetails(job.id, { 
                     crewSize: job.crewSize || 3,
                     durationHours: job.durationHours || 6,
                     crewHourlyRate: Number(e.target.value) || 0
@@ -442,7 +442,7 @@ export default function JobDetailsModal({
               const crewHourlyRate = job.crewHourlyRate || 25;
               const wageCost = crewSize * durationHours * crewHourlyRate;
               const netProfit = currentPrice - wageCost;
-              const profitMargin = Math.round((netProfit / currentPrice) * 100) || 0;
+              const profitMargin = currentPrice > 0 ? Math.round((netProfit / currentPrice) * 100) : 0;
 
               return (
                 <div className="grid grid-cols-3 gap-3 text-center text-xs border border-slate-800/40 bg-slate-950/20 p-3 rounded-lg font-semibold">

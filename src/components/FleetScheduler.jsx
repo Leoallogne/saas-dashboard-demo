@@ -23,7 +23,8 @@ export default function FleetScheduler({
   onAssignTruck, 
   onUpdateJobStatus, 
   onToggleMaintenance,
-  formatCurrency 
+  formatCurrency,
+  onUpdateJobDetails
 }) {
   // Static dates corresponding to the mockData dates
   const weekDays = [
@@ -86,13 +87,14 @@ export default function FleetScheduler({
     // Direct update logic
     onAssignTruck(jobId, targetTruckId);
     
-    // Find job to update its date locally
+    // Find job to update its details immutably
     const job = allJobs.find(j => j.id === jobId);
     if (job) {
-      job.date = targetDate;
+      const updatedFields = { date: targetDate };
       if (job.status === 'Estimate Sent' || job.status === 'New Inquiry') {
-        onUpdateJobStatus(jobId, 'Scheduled');
+        updatedFields.status = 'Scheduled';
       }
+      onUpdateJobDetails(jobId, updatedFields);
     }
     setDraggedJobId(null);
   };
