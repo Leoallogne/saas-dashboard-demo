@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Search, 
   MapPin, 
@@ -26,7 +26,9 @@ export default function JobPipeline({
   onUpdateJobStatus, 
   onAddNewJob, 
   onSeedData, 
-  formatCurrency 
+  formatCurrency,
+  prefilledQuoteData,
+  clearPrefilledQuoteData
 }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [minRevenue, setMinRevenue] = useState(0);
@@ -34,6 +36,12 @@ export default function JobPipeline({
   const [sizeFilter, setSizeFilter] = useState('all'); // 'all' | 'small' | 'medium' | 'large'
   const [draggedOverCol, setDraggedOverCol] = useState(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (prefilledQuoteData) {
+      setIsAddModalOpen(true);
+    }
+  }, [prefilledQuoteData]);
 
   const columns = [
     {
@@ -430,8 +438,12 @@ export default function JobPipeline({
       {/* New Job Slide Modal */}
       {isAddModalOpen && (
         <AddJobModal 
-          onClose={() => setIsAddModalOpen(false)}
+          onClose={() => {
+            setIsAddModalOpen(false);
+            if (clearPrefilledQuoteData) clearPrefilledQuoteData();
+          }}
           onSubmit={onAddNewJob}
+          prefilledData={prefilledQuoteData}
         />
       )}
     </div>

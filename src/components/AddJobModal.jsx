@@ -4,15 +4,15 @@ import { useJsApiLoader, Autocomplete, GoogleMap, DirectionsRenderer } from '@re
 
 const GOOGLE_MAPS_LIBRARIES = ['places'];
 
-export default function AddJobModal({ onClose, onSubmit }) {
+export default function AddJobModal({ onClose, onSubmit, prefilledData }) {
   const [formData, setFormData] = useState({
     clientName: '',
     phone: '',
     email: '',
     origin: '',
     destination: '',
-    estimateAmount: '',
-    items: '',
+    estimateAmount: prefilledData?.estimateAmount || '',
+    items: prefilledData?.items || '',
     notes: '',
     date: new Date().toISOString().split('T')[0] // default to today
   });

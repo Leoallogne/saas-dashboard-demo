@@ -127,6 +127,50 @@ export default function App() {
 
   const [selectedJob, setSelectedJob] = useState(null);
 
+  // Prefilled quote data for modal creation
+  const [prefilledQuoteData, setPrefilledQuoteData] = useState(null);
+
+  // Dynamic activity logs state
+  const [activityLogs, setActivityLogs] = useState(() => {
+    try {
+      const saved = localStorage.getItem('moveops_activity_logs');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch (e) {
+      console.error("Failed to parse activity logs:", e);
+    }
+    return [
+      { id: 'log-1', message: 'Sarah Jenkins status changed to "Scheduled"', time: '10 mins ago' },
+      { id: 'log-2', message: 'Truck D locked for service on 2026-07-10', time: '1 hour ago' },
+      { id: 'log-3', message: 'Inquiry created for Bruce Wayne ($4800)', time: '3 hours ago' }
+    ];
+  });
+
+  const addActivityLog = (message) => {
+    const newLog = {
+      id: `log-${Math.random().toString(36).substring(2, 9)}`,
+      message,
+      time: 'Just now'
+    };
+    setActivityLogs(prev => {
+      const updated = [newLog, ...prev.slice(0, 19)];
+      try {
+        localStorage.setItem('moveops_activity_logs', JSON.stringify(updated));
+      } catch (e) {
+        console.error("Failed to save activity logs:", e);
+      }
+      return updated;
+    });
+  };
+
+  const handleStartJobFromQuote = (quoteData) => {
+    setPrefilledQuoteData(quoteData);
+    setActiveTab('pipeline');
+    addActivityLog(`Penawaran Harga ($${quoteData.estimateAmount}) ditransfer ke form Kanban.`);
+  };
+
   // 2. Synchronize States safely in useEffect
   useEffect(() => {
     if (!isLoading) {
@@ -223,6 +267,7 @@ export default function App() {
     // Trigger toast notification
     if (jobName) {
       addToast('success', 'Status Updated', `${jobName} moved to "${newStatus}"`);
+      addActivityLog(`${jobName} status changed to "${newStatus}"`);
     }
 
     // If modal is currently open and viewing this job, sync details
@@ -261,6 +306,7 @@ export default function App() {
     // Trigger toast notification
     if (clientName) {
       addToast('info', 'Fleet Assigned', `${clientName} has been assigned to ${truckName}`);
+      addActivityLog(`${clientName} assigned to ${truckName}`);
     }
 
     // Sync modal selection
@@ -296,11 +342,14 @@ export default function App() {
             const affectedJobs = jobs.filter(j => j.truckId === truckId && j.date === dateStr && j.pipelineId === activePipelineId);
             if (affectedJobs.length > 0) {
               addToast('warning', 'Schedule Unassigned', `Unassigned ${affectedJobs.length} job(s) from ${truckName} due to scheduled maintenance.`);
+              addActivityLog(`${truckName} locked for maintenance. ${affectedJobs.length} jobs rescheduled.`);
             } else {
               addToast('info', 'Maintenance Scheduled', `${truckName} scheduled for service on ${dateStr}`);
+              addActivityLog(`${truckName} scheduled for maintenance on ${dateStr}`);
             }
           } else {
             addToast('success', 'Truck Available', `${truckName} marked available on ${dateStr}`);
+            addActivityLog(`${truckName} marked available on ${dateStr}`);
           }
           return { ...truck, maintenanceDates: updatedDates };
         }
@@ -337,6 +386,7 @@ export default function App() {
     setPipelines(prev => [...prev, newPipelineObj]);
     setActivePipelineId(newId);
     addToast('success', 'Workspace Switched', `Created and switched to branch: ${name}`);
+    addActivityLog(`Switched branch to: ${name}`);
   };
 
   const handleAddNewJob = (newJobData) => {
@@ -350,6 +400,7 @@ export default function App() {
     };
     setJobs(prev => [jobWithPayroll, ...prev]);
     addToast('success', 'New Inquiry Created', `Created job files for ${newJobData.clientName}`);
+    addActivityLog(`New Inquiry created for ${newJobData.clientName} ($${newJobData.estimateAmount})`);
   };
 
   // Seed default templates for new branches
@@ -451,6 +502,8 @@ export default function App() {
             formatCurrency={formatCurrency}
             hourlyRate={hourlyRate}
             fuelRate={fuelRate}
+            activityLogs={activityLogs}
+            onStartJobFromQuote={handleStartJobFromQuote}
           />
         );
       case 'pipeline':
@@ -463,6 +516,8 @@ export default function App() {
             onAddNewJob={handleAddNewJob}
             onSeedData={handleSeedBranchData}
             formatCurrency={formatCurrency}
+            prefilledQuoteData={prefilledQuoteData}
+            clearPrefilledQuoteData={() => setPrefilledQuoteData(null)}
           />
         );
       case 'scheduler':
