@@ -457,6 +457,7 @@ export default function App() {
         return (
           <JobPipeline 
             jobs={activePipelineJobs} 
+            trucks={trucks}
             onSelectJob={setSelectedJob}
             onUpdateJobStatus={handleUpdateJobStatus}
             onAddNewJob={handleAddNewJob}

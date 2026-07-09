@@ -11,13 +11,27 @@ import {
   Truck,
   Plus,
   ArrowUpRight,
-  TrendingUp
+  TrendingUp,
+  AlertTriangle,
+  Edit3,
+  Eye,
+  Box
 } from 'lucide-react';
 import AddJobModal from './AddJobModal';
 
-export default function JobPipeline({ jobs, onSelectJob, onUpdateJobStatus, onAddNewJob, onSeedData, formatCurrency }) {
+export default function JobPipeline({ 
+  jobs, 
+  trucks = [],
+  onSelectJob, 
+  onUpdateJobStatus, 
+  onAddNewJob, 
+  onSeedData, 
+  formatCurrency 
+}) {
   const [searchQuery, setSearchQuery] = useState('');
   const [minRevenue, setMinRevenue] = useState(0);
+  const [showUnassignedOnly, setShowUnassignedOnly] = useState(false);
+  const [sizeFilter, setSizeFilter] = useState('all'); // 'all' | 'small' | 'medium' | 'large'
   const [draggedOverCol, setDraggedOverCol] = useState(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
@@ -60,6 +74,14 @@ export default function JobPipeline({ jobs, onSelectJob, onUpdateJobStatus, onAd
     }
   ];
 
+  // Helper to categorize job size
+  const getMoveSize = (items) => {
+    const lower = (items || '').toLowerCase();
+    if (lower.includes('1 bedroom') || lower.includes('1-bed') || lower.includes('apt') || lower.includes('sprinter')) return 'small';
+    if (lower.includes('4 bedroom') || lower.includes('4-bed') || lower.includes('house') || lower.includes('5-bed')) return 'large';
+    return 'medium'; // default
+  };
+
   // Filters logic
   const filteredJobs = jobs.filter((job) => {
     const matchesSearch = 
@@ -71,7 +93,13 @@ export default function JobPipeline({ jobs, onSelectJob, onUpdateJobStatus, onAd
     const revenueAmount = job.revenue || job.estimateAmount || 0;
     const matchesMinRevenue = revenueAmount >= minRevenue;
 
-    return matchesSearch && matchesMinRevenue;
+    // Filter unassigned trucks on Scheduled status
+    const matchesUnassigned = !showUnassignedOnly || (job.status === 'Scheduled' && !job.truckId);
+
+    // Filter by property move size
+    const matchesSize = sizeFilter === 'all' || getMoveSize(job.items) === sizeFilter;
+
+    return matchesSearch && matchesMinRevenue && matchesUnassigned && matchesSize;
   });
 
   if (jobs.length === 0) {
@@ -177,16 +205,43 @@ export default function JobPipeline({ jobs, onSelectJob, onUpdateJobStatus, onAd
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header & Actions */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-white tracking-tight">Job Pipeline</h2>
           <p className="text-slate-400 text-sm mt-0.5">
-            Drag cards to change staging. Click to open details.
+            Drag cards to change staging. Click details to dispatch.
           </p>
         </div>
 
         {/* Filter & Add Actions */}
         <div className="flex flex-wrap items-center gap-3">
+          
+          {/* Unassigned Truck Checkbox Toggle */}
+          <label className="flex items-center gap-2 bg-slate-900/60 border border-slate-800 rounded-xl px-3 py-2 text-xs font-semibold text-slate-400 cursor-pointer hover:border-slate-700 transition-all select-none">
+            <input
+              type="checkbox"
+              checked={showUnassignedOnly}
+              onChange={(e) => setShowUnassignedOnly(e.target.checked)}
+              className="rounded border-slate-750 bg-slate-950 checked:bg-brand-500 cursor-pointer focus:ring-0 focus:ring-offset-0 text-brand-500 w-3.5 h-3.5"
+            />
+            <span className={showUnassignedOnly ? 'text-amber-400' : ''}>⚠️ Unassigned Trucks Only</span>
+          </label>
+
+          {/* Size Filter Select */}
+          <div className="flex items-center gap-2 bg-slate-900/60 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-400">
+            <Filter className="w-4 h-4 text-brand-400" />
+            <select
+              value={sizeFilter}
+              onChange={(e) => setSizeFilter(e.target.value)}
+              className="bg-transparent text-white focus:outline-none font-semibold cursor-pointer text-xs"
+            >
+              <option value="all" className="bg-slate-950">All Move Sizes</option>
+              <option value="small" className="bg-slate-950">Small (Apt / 1-Bed)</option>
+              <option value="medium" className="bg-slate-950">Medium (2-3 Bed)</option>
+              <option value="large" className="bg-slate-950">Large (4+ Bed / House)</option>
+            </select>
+          </div>
+
           <div className="relative">
             <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
@@ -194,12 +249,12 @@ export default function JobPipeline({ jobs, onSelectJob, onUpdateJobStatus, onAd
               placeholder="Search client, address..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="bg-slate-900/60 border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-brand-500/50 w-52 transition-all animate-fade-in"
+              className="bg-slate-900/60 border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-brand-500/50 w-44 transition-all"
             />
           </div>
 
-          <div className="flex items-center gap-2 bg-slate-900/60 border border-slate-800 rounded-xl px-3 py-2 text-sm text-slate-400">
-            <Filter className="w-4 h-4" />
+          <div className="flex items-center gap-2 bg-slate-900/60 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-400">
+            <DollarSign className="w-4 h-4 text-brand-400" />
             <select
               value={minRevenue}
               onChange={(e) => setMinRevenue(Number(e.target.value))}
@@ -268,6 +323,13 @@ export default function JobPipeline({ jobs, onSelectJob, onUpdateJobStatus, onAd
                   colJobs.map((job) => {
                     const jobPrice = job.revenue || job.estimateAmount || 0;
                     const canPromote = !!nextStatusMap[job.status];
+                    
+                    // Look up truck details
+                    const truck = trucks.find(t => t.id === job.truckId);
+                    const truckNameShort = truck ? truck.name.split(' (')[0] : (job.truckId ? job.truckId.toUpperCase() : '');
+
+                    // House Size Label
+                    const sizeLabel = getMoveSize(job.items) === 'small' ? 'Small Pack' : getMoveSize(job.items) === 'large' ? 'Large House' : 'Medium Move';
 
                     return (
                       <div
@@ -281,15 +343,15 @@ export default function JobPipeline({ jobs, onSelectJob, onUpdateJobStatus, onAd
                           <h4 className="font-bold text-xs text-white group-hover:text-brand-400 transition-colors truncate w-2/3">
                             {job.clientName}
                           </h4>
-                          <span className="text-xs font-black text-slate-300 flex-shrink-0">
+                          <span className="text-xs font-black text-slate-350 flex-shrink-0">
                             {formatCurrency(jobPrice)}
                           </span>
                         </div>
 
                         {/* Route display */}
                         <div className="space-y-1">
-                          <div className="flex items-center gap-1.5 text-[10px] text-slate-400">
-                            <MapPin className="w-3 h-3 text-slate-500 flex-shrink-0" />
+                          <div className="flex items-center gap-1.5 text-[10px] text-slate-450">
+                            <MapPin className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
                             <span className="truncate">{job.origin.split(',')[0]}</span>
                           </div>
                           <div className="flex items-center gap-1 text-[9px] text-slate-500 pl-4">
@@ -298,40 +360,63 @@ export default function JobPipeline({ jobs, onSelectJob, onUpdateJobStatus, onAd
                           </div>
                         </div>
 
-                        {/* Items Info */}
-                        {job.items && (
-                          <div className="flex items-center gap-1.5 text-[10px] text-slate-400 bg-slate-900/60 p-1.5 rounded border border-slate-800/30">
-                            <Layers className="w-3 h-3 text-slate-500 flex-shrink-0" />
-                            <span className="truncate font-medium">{job.items}</span>
-                          </div>
-                        )}
-
-                        {/* Date and Operations Badge */}
-                        <div className="flex justify-between items-center pt-2 border-t border-slate-800/20 text-[10px]">
-                          <span className="text-slate-400 font-medium flex items-center gap-1">
-                            <Calendar className="w-3 h-3 text-slate-500" />
-                            {job.date}
+                        {/* Items & Size Info Badge */}
+                        <div className="flex flex-wrap items-center gap-1 text-[8.5px] font-black uppercase">
+                          <span className="bg-slate-900 border border-slate-800 text-slate-400 px-1.5 py-0.5 rounded flex items-center gap-1">
+                            <Box className="w-2.5 h-2.5 text-slate-500" />
+                            {sizeLabel}
                           </span>
                           
-                          {job.truckId && (
-                            <span className="text-brand-400 font-semibold flex items-center gap-1 bg-brand-500/10 border border-brand-500/10 px-1.5 py-0.5 rounded">
-                              <Truck className="w-2.5 h-2.5" />
-                              {job.truckId.replace('truck-', 'Truck ').toUpperCase()}
+                          {job.items.toLowerCase().includes('piano') && (
+                            <span className="bg-red-500/10 border border-red-500/20 text-red-400 px-1.5 py-0.5 rounded">
+                              🎹 Heavy Piano
                             </span>
                           )}
                         </div>
 
+                        {/* Date and Operations Badge */}
+                        <div className="flex justify-between items-center pt-2.5 border-t border-slate-850 text-[9.5px]">
+                          <span className="text-slate-400 font-medium flex items-center gap-1">
+                            <Calendar className="w-3.5 h-3.5 text-slate-500" />
+                            {job.date}
+                          </span>
+                          
+                          {job.status === 'Scheduled' && !job.truckId ? (
+                            <span className="text-amber-400 font-extrabold flex items-center gap-1 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full animate-pulse text-[8px] tracking-wide" title="No truck assigned to this scheduled job yet.">
+                              <AlertTriangle className="w-2.5 h-2.5" />
+                              NO TRUCK
+                            </span>
+                          ) : job.truckId ? (
+                            <span className="text-brand-400 font-extrabold flex items-center gap-1 bg-brand-500/10 border border-brand-500/10 px-2 py-0.5 rounded-full text-[8.5px]">
+                              <Truck className="w-2.5 h-2.5" />
+                              {truckNameShort}
+                            </span>
+                          ) : null}
+                        </div>
+
                         {/* Hover Quick Action controls */}
-                        {canPromote && (
+                        <div className="absolute right-2 bottom-8 flex gap-1.5 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button
-                            onClick={(e) => handleQuickPromote(e, job.id, job.status)}
-                            className="absolute right-2 bottom-8 bg-brand-600 hover:bg-brand-500 hover:scale-105 active:scale-95 text-white p-1 rounded-lg border border-brand-500/50 shadow-md shadow-brand-600/20 opacity-0 group-hover:opacity-100 transition-all z-10 flex items-center gap-1 text-[9px] font-bold"
-                            title={`Promote to ${nextStatusMap[job.status]}`}
+                            onClick={(e) => {
+                              e.stopPropagation(); // prevent drag
+                              onSelectJob(job);
+                            }}
+                            className="bg-slate-900 hover:bg-slate-800 text-slate-300 p-1.5 rounded-lg border border-slate-800 shadow-md flex items-center justify-center hover:scale-105 active:scale-95 transition-all"
+                            title="Open detailed view"
                           >
-                            <ArrowUpRight className="w-3 h-3" />
-                            <span>Quick Move</span>
+                            <Edit3 className="w-3 h-3 text-brand-400" />
                           </button>
-                        )}
+                          {canPromote && (
+                            <button
+                              onClick={(e) => handleQuickPromote(e, job.id, job.status)}
+                              className="bg-brand-600 hover:bg-brand-500 hover:scale-105 active:scale-95 text-white py-1 px-2.5 rounded-lg border border-brand-500/50 shadow-md shadow-brand-600/20 transition-all flex items-center gap-1 text-[9px] font-bold"
+                              title={`Promote to ${nextStatusMap[job.status]}`}
+                            >
+                              <ArrowUpRight className="w-3.5 h-3.5" />
+                              <span>Quick Move</span>
+                            </button>
+                          )}
+                        </div>
                       </div>
                     );
                   })
