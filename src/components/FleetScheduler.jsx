@@ -11,7 +11,10 @@ import {
   Wrench,
   Search,
   GripVertical,
-  Info
+  Info,
+  Filter,
+  Box,
+  Compass
 } from 'lucide-react';
 
 export default function FleetScheduler({ 
@@ -38,21 +41,31 @@ export default function FleetScheduler({
   ];
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [truckTypeFilter, setTruckTypeFilter] = useState('all');
   const [draggedJobId, setDraggedJobId] = useState(null);
+
+  // Helper to extract truck type from name string (e.g. "Truck A (26ft Box Truck)")
+  const getTruckType = (name) => {
+    if (name.includes('26ft')) return '26ft Box';
+    if (name.includes('20ft')) return '20ft Box';
+    if (name.includes('16ft')) return '16ft Sprinter';
+    return 'Other';
+  };
 
   // Filter unscheduled jobs
   const unscheduledJobs = jobs.filter(j => 
     (j.status === 'Scheduled' || j.status === 'Estimate Sent' || j.status === 'New Inquiry') && !j.truckId
   );
 
-  // Filter trucks based on search
+  // Filter trucks based on search query & truck type selection
   const filteredTrucks = trucks.filter(truck => {
-    if (!searchQuery) return true;
-    const lowerQ = searchQuery.toLowerCase();
-    return (
-      truck.name.toLowerCase().includes(lowerQ) ||
-      truck.driverName.toLowerCase().includes(lowerQ)
-    );
+    const matchesSearch = !searchQuery || 
+      truck.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      truck.driverName.toLowerCase().includes(searchQuery.toLowerCase());
+      
+    const matchesType = truckTypeFilter === 'all' || getTruckType(truck.name) === truckTypeFilter;
+    
+    return matchesSearch && matchesType;
   });
 
   const getJobsForCell = (truckId, dateStr) => {
@@ -84,10 +97,10 @@ export default function FleetScheduler({
     const jobId = e.dataTransfer.getData('jobId');
     if (!jobId || !targetTruckId) return;
 
-    // Direct update logic
+    // Assign truck
     onAssignTruck(jobId, targetTruckId);
     
-    // Find job to update its details immutably
+    // Update date and promote status to Scheduled dynamically
     const job = allJobs.find(j => j.id === jobId);
     if (job) {
       const updatedFields = { date: targetDate };
@@ -110,6 +123,22 @@ export default function FleetScheduler({
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
+          
+          {/* Truck Type Selector */}
+          <div className="flex items-center gap-2 bg-slate-900/60 border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-400">
+            <Filter className="w-4 h-4 text-brand-400" />
+            <select
+              value={truckTypeFilter}
+              onChange={(e) => setTruckTypeFilter(e.target.value)}
+              className="bg-transparent text-white focus:outline-none font-semibold cursor-pointer"
+            >
+              <option value="all" className="bg-slate-950">All Fleet Types</option>
+              <option value="26ft Box" className="bg-slate-950">26ft Box Truck</option>
+              <option value="20ft Box" className="bg-slate-950">20ft Box Truck</option>
+              <option value="16ft Sprinter" className="bg-slate-950">16ft Sprinter Van</option>
+            </select>
+          </div>
+
           <div className="relative">
             <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
             <input 
@@ -117,9 +146,10 @@ export default function FleetScheduler({
               placeholder="Search truck or driver..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              className="bg-slate-900 border border-slate-800 rounded-xl pl-9 pr-4 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-brand-500/50 min-w-[220px]"
+              className="bg-slate-900 border border-slate-800 rounded-xl pl-9 pr-4 py-2.5 text-xs text-white placeholder-slate-550 focus:outline-none focus:border-brand-500/50 min-w-[200px]"
             />
           </div>
+
           <div className="flex items-center gap-2 text-xs font-semibold text-slate-400 bg-slate-900 border border-slate-800 p-2.5 rounded-xl">
             <Calendar className="w-4 h-4 text-brand-400" />
             <span>July 6 – July 12, 2026</span>
@@ -130,9 +160,10 @@ export default function FleetScheduler({
       {/* Main Grid Layout */}
       <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 flex-1 min-h-0">
         
-        {/* Scheduler Grid */}
+        {/* Scheduler Grid Container */}
         <div className="xl:col-span-3 glass-panel rounded-2xl border border-slate-800/60 p-5 overflow-x-auto relative flex flex-col">
           <div className="min-w-[950px] flex-1">
+            
             {/* Grid Header: Days of the week */}
             <div className="grid grid-cols-8 gap-3 pb-4 border-b border-slate-800/40 text-center sticky top-0 bg-slate-950/80 backdrop-blur-xl z-20">
               <div className="text-left font-bold text-xs text-slate-400 uppercase tracking-wider pl-2 flex items-center">
@@ -171,12 +202,15 @@ export default function FleetScheduler({
                         <h4 className="text-xs font-extrabold text-white truncate leading-none">
                           {truck.name.split(' ')[0] + ' ' + truck.name.split(' ')[1]}
                         </h4>
-                        <p className="text-[10px] text-slate-500 truncate flex items-center gap-0.5 mt-1 font-medium">
-                          <User className="w-2.5 h-2.5" />
+                        <p className="text-[10px] text-slate-400 truncate mt-1">
+                          {getTruckType(truck.name)}
+                        </p>
+                        <p className="text-[9px] text-slate-500 truncate flex items-center gap-0.5 mt-1 font-medium">
+                          <User className="w-2.5 h-2.5 text-slate-650" />
                           {truck.driverName.split(' ')[0]}
                         </p>
-                        <p className="text-[9px] font-black text-emerald-500 mt-1 bg-emerald-500/10 inline-block px-1.5 py-0.5 rounded border border-emerald-500/20">
-                          {formatCurrency(weeklyRevenue)} <span className="text-[8px] text-emerald-500/70 font-bold uppercase">/ wk</span>
+                        <p className="text-[9px] font-black text-emerald-500 mt-1 bg-emerald-500/10 inline-block px-1.5 py-0.5 rounded border border-emerald-500/20 w-fit">
+                          {formatCurrency(weeklyRevenue)}
                         </p>
                       </div>
                     </div>
@@ -201,23 +235,30 @@ export default function FleetScheduler({
                           key={day.dateStr} 
                           onDragOver={isUnderMaintenance ? undefined : handleDragOver}
                           onDrop={isUnderMaintenance ? undefined : (e) => handleDrop(e, truck.id, day.dateStr)}
-                          className={`h-24 rounded-xl border p-1.5 flex flex-col gap-1.5 transition-all relative group/cell ${
+                          className={`min-h-[110px] h-auto pb-3 rounded-xl border p-1.5 flex flex-col gap-1.5 transition-all relative group/cell ${
                             isUnderMaintenance
-                              ? 'bg-slate-900/40 border-slate-850'
+                              ? 'bg-slate-950/40 border-slate-900/80'
                               : isConflict 
-                                ? 'bg-red-950/20 border-red-500/40 ring-1 ring-red-500/20 shadow-[inset_0_0_15px_rgba(239,68,68,0.1)]' 
+                                ? 'bg-red-950/10 border-red-500/35 ring-1 ring-red-500/15 shadow-[inset_0_0_15px_rgba(239,68,68,0.08)]' 
                                 : isCrossBranchConflict
                                   ? 'bg-amber-950/10 border-amber-500/20 ring-1 ring-amber-500/10'
                                   : isDragOverTarget
-                                    ? 'bg-brand-950/20 border-brand-500/50 border-dashed ring-2 ring-brand-500/20'
+                                    ? 'bg-brand-950/20 border-brand-500/50 border-dashed ring-2 ring-brand-500/20 scale-[1.01]'
                                     : 'bg-slate-950/40 border-slate-900/50 hover:border-slate-800'
                           }`}
+                          style={
+                            isUnderMaintenance
+                              ? {
+                                  backgroundImage: 'repeating-linear-gradient(45deg, rgba(245, 158, 11, 0.05) 0px, rgba(245, 158, 11, 0.05) 10px, transparent 10px, transparent 20px)'
+                                }
+                              : undefined
+                          }
                         >
                           {/* Maintenance Lock Layout */}
                           {isUnderMaintenance ? (
                             <div 
                               onClick={() => onToggleMaintenance(truck.id, day.dateStr)}
-                              className="absolute inset-1 rounded-lg p-1 bg-slate-900 border border-slate-800/80 flex flex-col justify-center items-center text-center cursor-pointer hover:bg-slate-800 hover:border-brand-500/20 transition-all select-none group/maint"
+                              className="absolute inset-1 rounded-lg p-1 bg-slate-900/90 border border-slate-800/80 flex flex-col justify-center items-center text-center cursor-pointer hover:bg-slate-850 hover:border-brand-500/20 transition-all select-none group/maint shadow-lg backdrop-blur-[1px]"
                               title="Click to cancel service schedule"
                             >
                               <Wrench className="w-4 h-4 text-amber-500 group-hover/maint:animate-spin" />
@@ -258,7 +299,9 @@ export default function FleetScheduler({
                                     className={`rounded-lg p-2 cursor-pointer text-left border relative group/item select-none transition-all shadow-sm active:scale-95 ${
                                       job.status === 'Completed'
                                         ? 'bg-emerald-950/40 border-emerald-500/25 hover:bg-emerald-900/60 hover:border-emerald-500/50 text-emerald-400'
-                                        : 'bg-brand-950/40 border-brand-500/25 hover:bg-brand-900/60 hover:border-brand-500/50 text-brand-300'
+                                        : isConflict
+                                          ? 'bg-red-950/30 border-red-500/50 hover:bg-red-900/40 hover:border-red-400 text-red-300'
+                                          : 'bg-brand-950/40 border-brand-500/25 hover:bg-brand-900/60 hover:border-brand-500/50 text-brand-300'
                                     }`}
                                   >
                                     <div className="text-[9.5px] font-bold uppercase truncate leading-tight flex items-center justify-between">
@@ -331,7 +374,7 @@ export default function FleetScheduler({
                               {allCellJobs.length === 0 && (
                                 <div 
                                   onClick={() => onToggleMaintenance(truck.id, day.dateStr)}
-                                  className="h-full w-full flex flex-col items-center justify-center opacity-0 group-hover/cell:opacity-100 transition-opacity duration-200 cursor-pointer absolute inset-0 bg-slate-950/60 backdrop-blur-[1px] rounded-lg z-0"
+                                  className="h-full w-full flex flex-col items-center justify-center opacity-0 group-hover/cell:opacity-100 transition-opacity duration-250 cursor-pointer absolute inset-0 bg-slate-950/65 backdrop-blur-[1px] rounded-lg z-0"
                                   title="Click to book maintenance locks"
                                 >
                                   <Wrench className="w-4 h-4 text-slate-400 hover:text-amber-500 mb-1 transition-colors" />
@@ -350,8 +393,8 @@ export default function FleetScheduler({
               })}
               
               {filteredTrucks.length === 0 && (
-                <div className="text-center py-10 text-slate-500 text-sm font-semibold">
-                  No trucks found matching "{searchQuery}"
+                <div className="text-center py-12 text-slate-500 text-sm font-semibold border border-dashed border-slate-800/80 rounded-2xl mt-4">
+                  No trucks found matching selection
                 </div>
               )}
             </div>
@@ -359,15 +402,15 @@ export default function FleetScheduler({
         </div>
 
         {/* Unassigned Jobs Sidebar (Drag Source) */}
-        <div className="glass-panel rounded-2xl border border-slate-800/60 p-5 flex flex-col h-full max-h-[80vh]">
+        <div className="glass-panel rounded-2xl border border-slate-800/60 p-5 flex flex-col h-full max-h-[85vh]">
           <div className="flex-1 flex flex-col overflow-hidden">
             <div>
               <h4 className="text-sm font-extrabold text-white tracking-tight flex items-center gap-2">
                 Unscheduled Jobs
-                <span className="bg-brand-500/20 text-brand-400 text-[10px] px-1.5 py-0.5 rounded-md">{unscheduledJobs.length}</span>
+                <span className="bg-brand-500/20 text-brand-400 text-[10px] px-1.5 py-0.5 rounded-md font-black">{unscheduledJobs.length}</span>
               </h4>
               <p className="text-[11px] text-slate-400 font-medium mt-1 leading-relaxed">
-                Drag a job and drop it onto an empty slot in the calendar to instantly assign and dispatch.
+                Drag a job ticket and drop it onto a grid slot to dispatch.
               </p>
             </div>
 
@@ -376,42 +419,65 @@ export default function FleetScheduler({
                 <div className="w-12 h-12 bg-slate-900 rounded-full flex items-center justify-center mb-3 border border-slate-800">
                   <AlertCircle className="w-6 h-6 text-slate-600" />
                 </div>
-                <p className="text-xs text-slate-300 font-bold">All caught up!</p>
+                <p className="text-xs text-slate-350 font-bold">All caught up!</p>
                 <p className="text-[10px] text-slate-500 font-medium mt-1 px-4 leading-relaxed">
-                  No unscheduled jobs remaining. New inquiries will appear here.
+                  No unscheduled jobs remaining for this branch division.
                 </p>
               </div>
             ) : (
               <div className="space-y-3 mt-6 overflow-y-auto pr-2 hide-scrollbar flex-1 pb-4">
-                {unscheduledJobs.map(job => (
-                  <div 
-                    key={job.id}
-                    draggable
-                    onDragStart={(e) => handleDragStart(e, job.id)}
-                    onDragEnd={handleDragEnd}
-                    className="bg-slate-900/70 border border-slate-800 rounded-xl p-3 flex flex-col gap-2 cursor-grab active:cursor-grabbing hover:border-brand-500/40 hover:bg-slate-900 transition-all group/dragjob shadow-sm"
-                  >
-                    <div className="flex justify-between items-start">
-                      <div className="flex items-start gap-1.5">
-                        <GripVertical className="w-4 h-4 text-slate-600 group-hover/dragjob:text-slate-400 mt-0.5 flex-shrink-0 transition-colors" />
-                        <div>
-                          <h5 className="text-[11px] font-extrabold text-white uppercase tracking-tight">{job.clientName}</h5>
-                          <p className="text-[9px] text-slate-500 mt-0.5 font-medium truncate max-w-[120px]">
-                            {job.origin.split(',')[0]} ➜ {job.destination.split(',')[0]}
-                          </p>
+                {unscheduledJobs.map(job => {
+                  // Determine property description badge
+                  const hasPiano = job.items.toLowerCase().includes('piano');
+                  const hasSafe = job.items.toLowerCase().includes('safe');
+                  
+                  return (
+                    <div 
+                      key={job.id}
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, job.id)}
+                      onDragEnd={handleDragEnd}
+                      onClick={() => onSelectJob(job)}
+                      className="bg-slate-900/80 border border-slate-800 hover:border-brand-500/45 hover:bg-slate-850 rounded-xl p-3 flex flex-col gap-2.5 cursor-grab active:cursor-grabbing transition-all group/dragjob shadow-md"
+                    >
+                      <div className="flex justify-between items-start">
+                        <div className="flex items-start gap-1.5 min-w-0">
+                          <GripVertical className="w-4 h-4 text-slate-600 group-hover/dragjob:text-brand-400 mt-0.5 flex-shrink-0 transition-colors" />
+                          <div className="min-w-0">
+                            <h5 className="text-[11px] font-extrabold text-white uppercase tracking-tight truncate pr-2" title={job.clientName}>
+                              {job.clientName}
+                            </h5>
+                            <span className="text-[8px] text-slate-500 block mt-0.5 truncate uppercase tracking-wider font-extrabold">
+                              Inquiry: {job.id}
+                            </span>
+                          </div>
                         </div>
+                        <span className="text-[10px] font-black text-brand-400 bg-brand-500/10 px-1.5 py-0.5 rounded border border-brand-500/20 shrink-0">
+                          {formatCurrency(job.estimateAmount)}
+                        </span>
                       </div>
-                      <span className="text-[10px] font-black text-brand-400 bg-brand-500/10 px-1.5 py-0.5 rounded border border-brand-500/20">
-                        {formatCurrency(job.estimateAmount)}
-                      </span>
+                      
+                      {/* Ticket Parameters Badges */}
+                      <div className="flex flex-wrap gap-1 px-5">
+                        <span className="bg-slate-950 border border-slate-850 text-slate-400 text-[8px] font-black uppercase px-1.5 py-0.5 rounded flex items-center gap-1">
+                          <Box className="w-2.5 h-2.5 text-slate-500" />
+                          {job.items.split(' ')[0] + ' ' + (job.items.split(' ')[1] || 'Rooms')}
+                        </span>
+                        
+                        {(hasPiano || hasSafe) && (
+                          <span className="bg-red-500/10 border border-red-500/20 text-red-400 text-[8px] font-black uppercase px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                            ⚠️ HEAVY OBJ
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-1 text-[9px] px-5 text-slate-500 font-semibold leading-relaxed truncate">
+                        <MapPin className="w-3.5 h-3.5 text-slate-600 flex-shrink-0" />
+                        <span className="truncate">{job.origin.split(',')[0]} ➜ {job.destination.split(',')[0]}</span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1.5 text-[9px] font-bold px-6 text-slate-400">
-                      <span className={job.status === 'Scheduled' ? 'text-blue-400' : job.status === 'New Inquiry' ? 'text-emerald-400' : 'text-amber-400'}>
-                        • {job.status}
-                      </span>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -420,7 +486,7 @@ export default function FleetScheduler({
             <Info className="w-4 h-4 text-slate-500 flex-shrink-0" />
             <p className="text-[9px] text-slate-500 font-medium leading-relaxed">
               <span className="text-slate-400 font-bold block mb-0.5">Drag-and-Drop Enabled</span>
-              You can move jobs from this panel to the grid, or move existing jobs directly between days and trucks within the grid.
+              Move job tickets to the calendar cells. If a truck goes under maintenance, conflicting schedules are automatically returned here.
             </p>
           </div>
         </div>
