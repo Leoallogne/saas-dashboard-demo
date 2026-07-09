@@ -16,7 +16,9 @@ import {
   User,
   CheckCircle,
   Filter,
-  Mail
+  Mail,
+  AlertTriangle,
+  Flag
 } from 'lucide-react';
 
 export default function JobAuditLedger({ jobs, formatCurrency, addToast, hourlyRate, fuelRate }) {
@@ -24,6 +26,7 @@ export default function JobAuditLedger({ jobs, formatCurrency, addToast, hourlyR
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [marginFilter, setMarginFilter] = useState('all');
+  const [showAnomaliesOnly, setShowAnomaliesOnly] = useState(false);
   
   const [sortField, setSortField] = useState('date');
   const [sortDirection, setSortDirection] = useState('desc');
@@ -37,8 +40,43 @@ export default function JobAuditLedger({ jobs, formatCurrency, addToast, hourlyR
   const [reconciledJobIds, setReconciledJobIds] = useState([]); // Local state for reconciled jobs
   const [isSendingInvoice, setIsSendingInvoice] = useState(false);
 
+  // Helper to identify anomalous / suspicious transactions
+  const checkAnomaly = (job) => {
+    const billings = job.revenue || job.estimateAmount || 0;
+    const crewSize = job.crewSize || 3;
+    const durationHours = job.durationHours || 6;
+    const crewHourlyRate = job.crewHourlyRate || hourlyRate;
+    const wages = crewSize * durationHours * crewHourlyRate;
+    
+    // Calculate fuel cost based on distance
+    const nameLength = job.clientName.length;
+    const distanceMilesFallback = (nameLength * 7) % 45 + 15;
+    const fuelCost = distanceMilesFallback * fuelRate;
+    
+    const totalExpenses = wages + fuelCost;
+    const profit = billings - totalExpenses;
+    const margin = billings > 0 ? (profit / billings) * 100 : 0;
+
+    const issues = [];
+    if (billings === 0) issues.push('Zero Billings');
+    if (profit < 0) issues.push('Negative Net Profit');
+    else if (margin < 15) issues.push('Low Profit Margin (<15%)');
+    if (wages > billings * 0.7) issues.push('High Wages (>70%)');
+    if (fuelCost > billings * 0.3) issues.push('High Fuel Cost (>30%)');
+    
+    return {
+      isAnomalous: issues.length > 0,
+      issues
+    };
+  };
+
   // Filter ONLY Completed jobs for auditing
   const completedJobs = jobs.filter(j => j.status === 'Completed');
+
+  // Total anomalies count across all completed jobs
+  const totalAnomaliesCount = useMemo(() => {
+    return completedJobs.filter(j => checkAnomaly(j).isAnomalous).length;
+  }, [completedJobs]);
 
   // Compute derived values and filter
   const filteredCompletedJobs = completedJobs.filter(job => {
@@ -71,7 +109,9 @@ export default function JobAuditLedger({ jobs, formatCurrency, addToast, hourlyR
     if (marginFilter === 'average') matchesMargin = margin >= 30 && margin < 60;
     if (marginFilter === 'low') matchesMargin = margin < 30;
 
-    return matchesSearch && matchesStartDate && matchesEndDate && matchesMargin;
+    const matchesAnomaly = !showAnomaliesOnly || checkAnomaly(job).isAnomalous;
+
+    return matchesSearch && matchesStartDate && matchesEndDate && matchesMargin && matchesAnomaly;
   });
 
   // Sorting
@@ -133,8 +173,85 @@ export default function JobAuditLedger({ jobs, formatCurrency, addToast, hourlyR
 
   // Handlers
   const handleExportCSV = () => {
-    let count = selectedJobIds.length > 0 ? selectedJobIds.length : sortedJobs.length;
-    addToast('success', 'Export Complete', `Audited ledger containing ${count} rows exported to CSV.`);
+    const jobsToExport = selectedJobIds.length > 0 
+      ? sortedJobs.filter(j => selectedJobIds.includes(j.id))
+      : sortedJobs;
+
+    if (jobsToExport.length === 0) {
+      addToast('warning', 'Export Empty', 'No completed jobs available to export.');
+      return;
+    }
+
+    // CSV headers
+    const headers = [
+      'Job ID',
+      'Client Name',
+      'Move Date',
+      'Origin Address',
+      'Destination Address',
+      'Billings (Revenue)',
+      'Wage Cost',
+      'Fuel Cost',
+      'Total Expenses',
+      'Net Profit',
+      'Profit Margin (%)',
+      'Reconciled Status',
+      'Audit Issues'
+    ];
+
+    // CSV rows
+    const rows = jobsToExport.map(job => {
+      const crewSize = job.crewSize || 3;
+      const durationHours = job.durationHours || 6;
+      const crewHourlyRate = job.crewHourlyRate || hourlyRate;
+      const wageCost = crewSize * durationHours * crewHourlyRate;
+      
+      const nameLength = job.clientName.length;
+      const distanceMilesFallback = (nameLength * 7) % 45 + 15;
+      const fuelCost = distanceMilesFallback * fuelRate;
+      
+      const totalExpenses = wageCost + fuelCost;
+      const revenue = job.revenue || job.estimateAmount || 0;
+      const profit = revenue - totalExpenses;
+      const margin = revenue > 0 ? Math.round((profit / revenue) * 100) : 0;
+      const isReconciled = reconciledJobIds.includes(job.id) ? 'Reconciled' : 'Unreconciled';
+      const anomaly = checkAnomaly(job);
+      const auditIssues = anomaly.isAnomalous ? anomaly.issues.join(' | ') : 'None';
+
+      return [
+        job.id,
+        `"${job.clientName.replace(/"/g, '""')}"`,
+        job.date,
+        `"${job.origin.replace(/"/g, '""')}"`,
+        `"${job.destination.replace(/"/g, '""')}"`,
+        revenue,
+        wageCost,
+        fuelCost.toFixed(2),
+        totalExpenses.toFixed(2),
+        profit.toFixed(2),
+        margin,
+        isReconciled,
+        `"${auditIssues}"`
+      ];
+    });
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(r => r.join(','))
+    ].join('\n');
+
+    // Create download link
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `MoveOps_Ledger_Export_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    addToast('success', 'Export Complete', `Audited ledger containing ${jobsToExport.length} rows exported to CSV.`);
   };
 
   const handlePrintLedger = () => {
@@ -216,7 +333,7 @@ export default function JobAuditLedger({ jobs, formatCurrency, addToast, hourlyR
       </div>
 
       {/* Audit Stats Banner */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 print:grid-cols-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 print:grid-cols-4">
         <div className="glass-panel p-4 rounded-xl border border-slate-800/40 print:border-black print:bg-white">
           <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block print:text-slate-600">Audited Moves</span>
           <h3 className="text-2xl font-extrabold text-white mt-1.5 print:text-black">{filteredCompletedJobs.length}</h3>
@@ -239,6 +356,30 @@ export default function JobAuditLedger({ jobs, formatCurrency, addToast, hourlyR
           </h3>
           <span className="text-[9px] text-slate-500 font-semibold block mt-1">Profit after labor</span>
         </div>
+        <div 
+          onClick={() => {
+            setShowAnomaliesOnly(prev => !prev);
+            setCurrentPage(1);
+          }}
+          className={`glass-panel p-4 rounded-xl border transition-all cursor-pointer select-none print:hidden ${
+            showAnomaliesOnly 
+              ? 'bg-red-950/20 border-red-500/50 shadow-[0_0_15px_rgba(239,68,68,0.15)]' 
+              : 'border-slate-800/40 hover:border-red-500/30'
+          }`}
+        >
+          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Suspicious Flags</span>
+          <div className="flex items-baseline gap-2 mt-1.5">
+            <h3 className={`text-2xl font-extrabold ${totalAnomaliesCount > 0 ? 'text-red-500' : 'text-slate-400'}`}>
+              {totalAnomaliesCount}
+            </h3>
+            {totalAnomaliesCount > 0 && (
+              <AlertTriangle className="w-4 h-4 text-red-500 animate-pulse" />
+            )}
+          </div>
+          <span className="text-[9px] text-slate-500 font-semibold block mt-1">
+            {showAnomaliesOnly ? 'Click to show all' : 'Click to filter flags'}
+          </span>
+        </div>
       </div>
 
       {/* Visual Breakdown Bar */}
@@ -255,66 +396,82 @@ export default function JobAuditLedger({ jobs, formatCurrency, addToast, hourlyR
       </div>
 
       {/* Filters Form */}
-      <div className="glass-panel p-4 rounded-2xl border border-slate-800/60 grid grid-cols-1 md:grid-cols-5 gap-3 items-center print:hidden">
-        {/* Text Search */}
-        <div className="relative md:col-span-2">
-          <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            value={searchQuery}
-            onChange={(e) => {
-              setSearchQuery(e.target.value);
-              setCurrentPage(1);
-            }}
-            placeholder="Search client, inventory, or locations..."
-            className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-2 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-brand-500/50"
-          />
-        </div>
+      <div className="glass-panel p-4 rounded-2xl border border-slate-800/60 flex flex-wrap gap-3 items-center justify-between print:hidden">
+        <div className="flex flex-wrap items-center gap-3 flex-1">
+          {/* Text Search */}
+          <div className="relative min-w-[240px] flex-1">
+            <Search className="w-4 h-4 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setCurrentPage(1);
+              }}
+              placeholder="Search client, inventory, or locations..."
+              className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-2 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-brand-500/50 font-medium"
+            />
+          </div>
 
-        {/* Start Date */}
-        <div className="relative">
-          <Calendar className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            type="date"
-            value={startDate}
-            onChange={(e) => {
-              setStartDate(e.target.value);
-              setCurrentPage(1);
-            }}
-            className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-brand-500/50 cursor-pointer"
-          />
-        </div>
+          {/* Start Date */}
+          <div className="relative w-36">
+            <Calendar className="w-3.5 h-3.5 text-slate-550 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => {
+                setStartDate(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-brand-500/50 cursor-pointer font-medium"
+            />
+          </div>
 
-        {/* End Date */}
-        <div className="relative">
-          <Calendar className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            type="date"
-            value={endDate}
-            onChange={(e) => {
-              setEndDate(e.target.value);
-              setCurrentPage(1);
-            }}
-            className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-brand-500/50 cursor-pointer"
-          />
-        </div>
+          {/* End Date */}
+          <div className="relative w-36">
+            <Calendar className="w-3.5 h-3.5 text-slate-550 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => {
+                setEndDate(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-brand-500/50 cursor-pointer font-medium"
+            />
+          </div>
 
-        {/* Margin Filter */}
-        <div className="relative">
-          <Filter className="w-3.5 h-3.5 text-slate-500 absolute left-3 top-1/2 -translate-y-1/2" />
-          <select
-            value={marginFilter}
-            onChange={(e) => {
-              setMarginFilter(e.target.value);
-              setCurrentPage(1);
-            }}
-            className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-brand-500/50 cursor-pointer appearance-none"
-          >
-            <option value="all">All Margins</option>
-            <option value="high">High (&gt;=60%)</option>
-            <option value="average">Avg (30%-60%)</option>
-            <option value="low">Low (&lt;30%)</option>
-          </select>
+          {/* Margin Filter */}
+          <div className="relative w-36">
+            <Filter className="w-3.5 h-3.5 text-slate-550 absolute left-3 top-1/2 -translate-y-1/2" />
+            <select
+              value={marginFilter}
+              onChange={(e) => {
+                setMarginFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-9 pr-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-brand-500/50 cursor-pointer appearance-none font-medium"
+            >
+              <option value="all">All Margins</option>
+              <option value="high">High (&gt;=60%)</option>
+              <option value="average">Avg (30%-60%)</option>
+              <option value="low">Low (&lt;30%)</option>
+            </select>
+          </div>
+
+          {/* Anomalies Filter Checkbox */}
+          <label className="flex items-center gap-2 bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs font-semibold text-slate-400 cursor-pointer hover:border-slate-705 hover:text-white transition-all select-none h-[34px]">
+            <input
+              type="checkbox"
+              checked={showAnomaliesOnly}
+              onChange={(e) => {
+                setShowAnomaliesOnly(e.target.checked);
+                setCurrentPage(1);
+              }}
+              className="rounded border-slate-700 bg-slate-900 checked:bg-brand-500 cursor-pointer text-brand-500 w-3.5 h-3.5"
+            />
+            <span className={showAnomaliesOnly ? 'text-red-400 font-extrabold' : 'font-bold'}>⚠️ Show Flags Only</span>
+          </label>
         </div>
       </div>
 
@@ -335,6 +492,7 @@ export default function JobAuditLedger({ jobs, formatCurrency, addToast, hourlyR
                 <th className="px-5 py-3.5 cursor-pointer hover:bg-slate-900/50 transition-colors" onClick={() => handleSort('date')}>
                   <div className="flex items-center gap-1.5">Client & Date <SortIcon field="date" /></div>
                 </th>
+                <th className="px-5 py-3.5 w-12 text-center">Flags</th>
                 <th className="px-5 py-3.5">Route</th>
                 <th className="px-5 py-3.5 text-center">Movers / Hours</th>
                 <th className="px-5 py-3.5 text-right cursor-pointer hover:bg-slate-900/50 transition-colors" onClick={() => handleSort('wages')}>
@@ -352,7 +510,7 @@ export default function JobAuditLedger({ jobs, formatCurrency, addToast, hourlyR
             <tbody className="divide-y divide-slate-800/40 text-xs font-semibold print:divide-slate-200">
               {paginatedJobs.length === 0 ? (
                 <tr>
-                  <td colSpan="8" className="px-5 py-16 text-center text-slate-500 uppercase tracking-widest font-extrabold">
+                  <td colSpan="9" className="px-5 py-16 text-center text-slate-500 uppercase tracking-widest font-extrabold">
                     No completed move records match search constraints
                   </td>
                 </tr>
@@ -368,10 +526,19 @@ export default function JobAuditLedger({ jobs, formatCurrency, addToast, hourlyR
 
                   const isSelected = selectedJobIds.includes(job.id);
                   const isReconciled = reconciledJobIds.includes(job.id);
+                  const anomaly = checkAnomaly(job);
 
                   return (
                     <React.Fragment key={job.id}>
-                      <tr className={`transition-colors print:hover:bg-transparent ${isSelected ? 'bg-brand-950/20' : isReconciled ? 'bg-emerald-950/10' : 'hover:bg-slate-900/40'}`}>
+                      <tr className={`transition-colors print:hover:bg-transparent ${
+                        isSelected 
+                          ? 'bg-brand-950/20' 
+                          : anomaly.isAnomalous 
+                            ? 'bg-red-950/15 hover:bg-red-950/20 border-l-[3.5px] border-l-red-500/60' 
+                            : isReconciled 
+                              ? 'bg-emerald-950/10 hover:bg-emerald-950/15' 
+                              : 'hover:bg-slate-900/40'
+                      }`}>
                         <td className="px-5 py-4 text-center print:hidden">
                           <input 
                             type="checkbox" 
@@ -390,6 +557,25 @@ export default function JobAuditLedger({ jobs, formatCurrency, addToast, hourlyR
                             )}
                           </div>
                           <span className="text-[10px] text-slate-500 block mt-0.5 print:text-slate-600">{job.date}</span>
+                        </td>
+                        <td className="px-5 py-4 text-center">
+                          {anomaly.isAnomalous ? (
+                            <div className="relative group/flag inline-block cursor-help z-10">
+                              <AlertTriangle className="w-4 h-4 text-red-500 animate-pulse mx-auto" />
+                              
+                              {/* Anomaly Tooltip */}
+                              <div className="absolute hidden group-hover/flag:block bg-slate-900 border border-red-500/35 text-white rounded-lg p-2.5 shadow-2xl w-48 text-[10px] left-1/2 -translate-x-1/2 bottom-full mb-1.5 text-left pointer-events-none">
+                                <span className="font-extrabold text-red-400 block mb-1">Suspicious Flagged:</span>
+                                <ul className="list-disc pl-3 space-y-0.5 text-slate-300 font-semibold">
+                                  {anomaly.issues.map((issue, idx) => (
+                                    <li key={idx}>{issue}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-slate-650 font-bold">-</span>
+                          )}
                         </td>
                         <td className="px-5 py-4 max-w-xs truncate">
                           <span className="text-slate-300 block print:text-black truncate">{job.origin.split(',')[0]}</span>
@@ -434,7 +620,7 @@ export default function JobAuditLedger({ jobs, formatCurrency, addToast, hourlyR
                       {/* Expanded Row */}
                       {selectedAuditJob === job.id && (
                         <tr className="bg-slate-950/60 print:hidden shadow-inner">
-                          <td colSpan="8" className="px-8 py-5 border-y border-slate-800/80">
+                          <td colSpan="9" className="px-8 py-5 border-y border-slate-800/80">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs leading-relaxed">
                               {/* Inventory Section */}
                               <div className="space-y-2">
