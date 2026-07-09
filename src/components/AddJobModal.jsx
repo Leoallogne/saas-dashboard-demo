@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Plus, Calendar, DollarSign, MapPin, Layers, Phone, Mail, FileText, Navigation, Map, Search } from 'lucide-react';
-import { useJsApiLoader, Autocomplete, GoogleMap, DirectionsRenderer, Marker } from '@react-google-maps/api';
+import { useJsApiLoader, Autocomplete, GoogleMap, DirectionsRenderer } from '@react-google-maps/api';
 
 export default function AddJobModal({ onClose, onSubmit }) {
   const [formData, setFormData] = useState({
@@ -33,6 +33,7 @@ export default function AddJobModal({ onClose, onSubmit }) {
   const [mapCenter, setMapCenter] = useState({ lat: 30.2672, lng: -97.7431 });
   const [mapZoom, setMapZoom] = useState(11);
   const [activeMobileTab, setActiveMobileTab] = useState('form'); // 'form' | 'map'
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const geocoderRef = useRef(null);
 
   const onOriginLoad = (autocomplete) => setOriginAutocomplete(autocomplete);
@@ -40,73 +41,61 @@ export default function AddJobModal({ onClose, onSubmit }) {
   const onMapSearchLoad = (autocomplete) => setMapSearchAutocomplete(autocomplete);
 
   const onOriginPlaceChanged = () => {
-    if (originAutocomplete !== null) {
+    if (originAutocomplete) {
       const place = originAutocomplete.getPlace();
-      const address = place.formatted_address || place.name;
-      if (address) {
-        setFormData(prev => ({ ...prev, origin: address }));
-      }
-      if (place.geometry?.location) {
-        setMapCenter({ lat: place.geometry.location.lat(), lng: place.geometry.location.lng() });
-        setMapZoom(15);
+      if (place.formatted_address) {
+        setFormData(prev => ({ ...prev, origin: place.formatted_address }));
+        if (place.geometry?.location) {
+          setMapCenter({
+            lat: place.geometry.location.lat(),
+            lng: place.geometry.location.lng()
+          });
+          setMapZoom(14);
+        }
       }
     }
   };
 
   const onDestPlaceChanged = () => {
-    if (destAutocomplete !== null) {
+    if (destAutocomplete) {
       const place = destAutocomplete.getPlace();
-      const address = place.formatted_address || place.name;
-      if (address) {
-        setFormData(prev => ({ ...prev, destination: address }));
-      }
-      if (place.geometry?.location) {
-        setMapCenter({ lat: place.geometry.location.lat(), lng: place.geometry.location.lng() });
-        setMapZoom(15);
+      if (place.formatted_address) {
+        setFormData(prev => ({ ...prev, destination: place.formatted_address }));
+        if (place.geometry?.location) {
+          setMapCenter({
+            lat: place.geometry.location.lat(),
+            lng: place.geometry.location.lng()
+          });
+          setMapZoom(14);
+        }
       }
     }
   };
 
   const onMapSearchPlaceChanged = () => {
-    if (mapSearchAutocomplete !== null) {
+    if (mapSearchAutocomplete) {
       const place = mapSearchAutocomplete.getPlace();
       if (place.geometry?.location) {
-        setMapCenter({ lat: place.geometry.location.lat(), lng: place.geometry.location.lng() });
-        setMapZoom(16);
+        const newCoord = {
+          lat: place.geometry.location.lat(),
+          lng: place.geometry.location.lng()
+        };
+        setMapCenter(newCoord);
+        setMapZoom(15);
+
+        // Auto-assign to current selected target (origin/destination)
+        if (place.formatted_address) {
+          if (mapClickTarget === 'origin') {
+            setFormData(prev => ({ ...prev, origin: place.formatted_address }));
+          } else {
+            setFormData(prev => ({ ...prev, destination: place.formatted_address }));
+          }
+        }
       }
     }
   };
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (!formData.clientName || !formData.origin || !formData.destination) return;
-
-    const newJob = {
-      id: `job-${Math.random().toString(36).substring(2, 9)}`,
-      clientName: formData.clientName,
-      phone: formData.phone || '(512) 555-0100',
-      email: formData.email || 'client@email.com',
-      status: 'New Inquiry',
-      origin: formData.origin,
-      destination: formData.destination,
-      estimateAmount: Number(formData.estimateAmount) || 850,
-      revenue: Number(formData.estimateAmount) || 850,
-      truckId: null,
-      date: formData.date,
-      items: formData.items || 'Standard boxes & furniture',
-      notes: formData.notes || 'Inquiry created from dispatch portal.'
-    };
-
-    onSubmit(newJob);
-    onClose();
-  };
-
-  // Route calculation
+  // Google Maps directions service integration
   useEffect(() => {
     if (isLoaded && formData.origin && formData.destination && window.google) {
       const directionsService = new window.google.maps.DirectionsService();
@@ -123,49 +112,78 @@ export default function AddJobModal({ onClose, onSubmit }) {
               setDistance(result.routes[0].legs[0].distance.text);
               setDuration(result.routes[0].legs[0].duration.text);
             }
+          } else {
+            console.error(`Directions request failed: ${status}`);
           }
         }
       );
-    } else {
-      setDirectionsResponse(null);
-      setDistance('');
-      setDuration('');
     }
   }, [isLoaded, formData.origin, formData.destination]);
 
-  // Handle map click
+  // Geocoding on map click
   const handleMapClick = (e) => {
-    if (!window.google) return;
+    if (!isLoaded || !window.google) return;
     
     if (!geocoderRef.current) {
       geocoderRef.current = new window.google.maps.Geocoder();
     }
-    
-    geocoderRef.current.geocode({ location: e.latLng }, (results, status) => {
+
+    const latLng = e.latLng;
+    geocoderRef.current.geocode({ location: latLng }, (results, status) => {
       if (status === 'OK' && results[0]) {
         const address = results[0].formatted_address;
-        setFormData(prev => ({ ...prev, [mapClickTarget]: address }));
+        if (mapClickTarget === 'origin') {
+          setFormData(prev => ({ ...prev, origin: address }));
+          setMapClickTarget('destination'); // toggle target automatically for convenience
+        } else {
+          setFormData(prev => ({ ...prev, destination: address }));
+        }
       }
     });
   };
 
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!formData.clientName || !formData.origin || !formData.destination || !formData.estimateAmount) {
+      return;
+    }
+    
+    setIsSubmitting(true);
+    // Simulate minor async lag for premium save feel
+    setTimeout(() => {
+      onSubmit({
+        ...formData,
+        id: `job-${Math.random().toString(36).substring(2, 9)}`,
+        status: 'New Inquiry',
+        estimateAmount: Number(formData.estimateAmount),
+        revenue: Number(formData.estimateAmount), // default initial revenue to estimate
+        truckId: null
+      });
+      setIsSubmitting(false);
+      onClose();
+    }, 500);
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in">
-      <div className="w-full max-w-5xl bg-slate-900 border border-slate-800/80 rounded-2xl shadow-2xl overflow-hidden animate-slide-up flex flex-col">
+      <div className="w-full max-w-4xl bg-slate-900 border border-slate-800/85 rounded-2xl shadow-2xl overflow-hidden animate-slide-up flex flex-col">
         
-        {/* Header */}
-        <div className="flex justify-between items-center px-6 py-4 border-b border-slate-800/60 bg-slate-900/60">
-          <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg bg-brand-500/20 flex items-center justify-center border border-brand-500/20">
-              <Plus className="w-4 h-4 text-brand-400" />
-            </div>
-            <h3 className="text-base font-bold text-white tracking-tight">Create New Job Inquiry</h3>
+        {/* Modal Header */}
+        <div className="px-6 py-4.5 border-b border-slate-800/60 flex justify-between items-center bg-slate-950/20">
+          <div>
+            <h3 className="text-sm font-black text-white uppercase tracking-wider">Create New Job Inquiry</h3>
+            <p className="text-[10px] text-slate-500 font-bold mt-0.5">Enter moving parameters & route configurations</p>
           </div>
           <button 
             onClick={onClose}
-            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/80 transition-all"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-all border border-transparent hover:border-slate-700"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
@@ -196,40 +214,43 @@ export default function AddJobModal({ onClose, onSubmit }) {
         </div>
 
         {/* Dual Pane Body */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 h-[60vh] lg:h-[75vh] overflow-hidden">
+        <div className="grid grid-cols-1 lg:grid-cols-2 h-[60vh] lg:h-[72vh] overflow-hidden">
           
           {/* LEFT PANE - Form */}
-          <form onSubmit={handleSubmit} className={`p-6 space-y-4 overflow-y-auto border-r border-slate-800/60 ${
+          <form onSubmit={handleSubmit} className={`p-5 space-y-4 overflow-y-auto border-r border-slate-800/60 ${
             activeMobileTab === 'form' ? 'block' : 'hidden lg:block'
           }`}>
-            {/* Client Details */}
-            <div className="space-y-3">
-              <h4 className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Client Info</h4>
+            
+            {/* 1. Client Details Section */}
+            <div className="space-y-3 bg-slate-950/20 p-4 rounded-xl border border-slate-850">
+              <h4 className="text-[9.5px] uppercase font-black text-brand-400 tracking-wider flex items-center gap-1.5">
+                <User className="w-3.5 h-3.5" /> Client Info
+              </h4>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="text-[10px] text-slate-400 font-semibold block">Full Name *</label>
+                  <label className="text-[9.5px] text-slate-400 font-bold block">Full Name *</label>
                   <input
                     type="text"
                     name="clientName"
                     value={formData.clientName}
                     onChange={handleChange}
                     required
-                    placeholder="e.g. Sandra Bullock"
-                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-brand-500/50"
+                    placeholder="Sandra Bullock"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg px-2.5 py-1.5 text-xs text-white placeholder-slate-650 focus:outline-none focus:border-brand-500/50 font-medium"
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] text-slate-400 font-semibold block">Phone Number</label>
+                  <label className="text-[9.5px] text-slate-400 font-bold block">Phone Number</label>
                   <div className="relative">
-                    <Phone className="w-3.5 h-3.5 text-slate-600 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                    <Phone className="w-3.5 h-3.5 text-slate-650 absolute left-2.5 top-1/2 -translate-y-1/2" />
                     <input
                       type="text"
                       name="phone"
                       value={formData.phone}
                       onChange={handleChange}
                       placeholder="(512) 555-0100"
-                      className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-8.5 pr-3 py-2 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-brand-500/50"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-8 pr-2.5 py-1.5 text-xs text-white placeholder-slate-650 focus:outline-none focus:border-brand-500/50 font-medium"
                     />
                   </div>
                 </div>
@@ -237,73 +258,72 @@ export default function AddJobModal({ onClose, onSubmit }) {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="text-[10px] text-slate-400 font-semibold block">Email Address</label>
+                  <label className="text-[9.5px] text-slate-400 font-bold block">Email Address</label>
                   <div className="relative">
-                    <Mail className="w-3.5 h-3.5 text-slate-600 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                    <Mail className="w-3.5 h-3.5 text-slate-650 absolute left-2.5 top-1/2 -translate-y-1/2" />
                     <input
                       type="email"
                       name="email"
                       value={formData.email}
                       onChange={handleChange}
                       placeholder="client@email.com"
-                      className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-8.5 pr-3 py-2 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-brand-500/50"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-8 pr-2.5 py-1.5 text-xs text-white placeholder-slate-650 focus:outline-none focus:border-brand-500/50 font-medium"
                     />
                   </div>
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] text-slate-400 font-semibold block">Target Date</label>
+                  <label className="text-[9.5px] text-slate-400 font-bold block">Target Move Date</label>
                   <div className="relative">
-                    <Calendar className="w-3.5 h-3.5 text-slate-600 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                    <Calendar className="w-3.5 h-3.5 text-slate-650 absolute left-2.5 top-1/2 -translate-y-1/2" />
                     <input
                       type="date"
                       name="date"
                       value={formData.date}
                       onChange={handleChange}
-                      className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-8.5 pr-3 py-2 text-xs text-white focus:outline-none focus:border-brand-500/50 cursor-pointer"
+                      className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-8 pr-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-brand-500/50 cursor-pointer font-medium"
                     />
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Pricing & Route */}
-            <div className="space-y-3 pt-2">
-              <h4 className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Move Parameters</h4>
+            {/* 2. Pricing & Route Section */}
+            <div className="space-y-3 bg-slate-950/20 p-4 rounded-xl border border-slate-850">
+              <h4 className="text-[9.5px] uppercase font-black text-indigo-400 tracking-wider flex items-center gap-1.5">
+                <Navigation className="w-3.5 h-3.5" /> Pricing & Route Params
+              </h4>
 
               <div className="space-y-1">
-                <label className="text-[10px] text-slate-400 font-semibold block">Estimate Pricing ($) *</label>
+                <label className="text-[9.5px] text-slate-400 font-bold block">Estimate Pricing ($) *</label>
                 <div className="relative">
-                  <DollarSign className="w-3.5 h-3.5 text-slate-600 absolute left-2.5 top-1/2 -translate-y-1/2" />
+                  <DollarSign className="w-3.5 h-3.5 text-slate-650 absolute left-2.5 top-1/2 -translate-y-1/2" />
                   <input
                     type="number"
                     name="estimateAmount"
                     value={formData.estimateAmount}
                     onChange={handleChange}
                     required
-                    placeholder="e.g. 1250"
-                    className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-8.5 pr-3 py-2 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-brand-500/50"
+                    placeholder="1250"
+                    className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-8 pr-2.5 py-1.5 text-xs text-white placeholder-slate-650 focus:outline-none focus:border-brand-500/50 font-medium"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="text-[10px] text-slate-400 font-semibold block">Origin Address *</label>
+                  <label className="text-[9.5px] text-slate-400 font-bold block">Origin Address *</label>
                   <div className="relative">
-                    <MapPin className="w-3.5 h-3.5 text-slate-600 absolute left-2.5 top-1/2 -translate-y-1/2 z-10" />
+                    <MapPin className="w-3.5 h-3.5 text-slate-650 absolute left-2.5 top-1/2 -translate-y-1/2 z-10" />
                     {isLoaded ? (
-                      <Autocomplete
-                        onLoad={onOriginLoad}
-                        onPlaceChanged={onOriginPlaceChanged}
-                      >
+                      <Autocomplete onLoad={onOriginLoad} onPlaceChanged={onOriginPlaceChanged}>
                         <input
                           type="text"
                           name="origin"
                           value={formData.origin}
                           onChange={handleChange}
                           required
-                          placeholder="Search / Paste Origin Address..."
-                          className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-8.5 pr-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-brand-500/50"
+                          placeholder="Search Origin..."
+                          className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-8 pr-2.5 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-brand-500/50 font-medium"
                         />
                       </Autocomplete>
                     ) : (
@@ -314,28 +334,25 @@ export default function AddJobModal({ onClose, onSubmit }) {
                         onChange={handleChange}
                         required
                         placeholder="Loading maps..."
-                        className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-8.5 pr-3 py-2 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-brand-500/50"
+                        className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-8 pr-2.5 py-1.5 text-xs text-white placeholder-slate-650 focus:outline-none focus:border-brand-500/50 font-medium"
                       />
                     )}
                   </div>
                 </div>
                 <div className="space-y-1">
-                  <label className="text-[10px] text-slate-400 font-semibold block">Destination Address *</label>
+                  <label className="text-[9.5px] text-slate-400 font-bold block">Destination Address *</label>
                   <div className="relative">
-                    <MapPin className="w-3.5 h-3.5 text-slate-600 absolute left-2.5 top-1/2 -translate-y-1/2 z-10" />
+                    <MapPin className="w-3.5 h-3.5 text-slate-650 absolute left-2.5 top-1/2 -translate-y-1/2 z-10" />
                     {isLoaded ? (
-                      <Autocomplete
-                        onLoad={onDestLoad}
-                        onPlaceChanged={onDestPlaceChanged}
-                      >
+                      <Autocomplete onLoad={onDestLoad} onPlaceChanged={onDestPlaceChanged}>
                         <input
                           type="text"
                           name="destination"
                           value={formData.destination}
                           onChange={handleChange}
                           required
-                          placeholder="Search / Paste Destination Address..."
-                          className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-8.5 pr-3 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-brand-500/50"
+                          placeholder="Search Destination..."
+                          className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-8 pr-2.5 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-brand-500/50 font-medium"
                         />
                       </Autocomplete>
                     ) : (
@@ -346,7 +363,7 @@ export default function AddJobModal({ onClose, onSubmit }) {
                         onChange={handleChange}
                         required
                         placeholder="Loading maps..."
-                        className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-8.5 pr-3 py-2 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-brand-500/50"
+                        className="w-full bg-slate-950 border border-slate-800 rounded-lg pl-8 pr-2.5 py-1.5 text-xs text-white placeholder-slate-650 focus:outline-none focus:border-brand-500/50 font-medium"
                       />
                     )}
                   </div>
@@ -354,13 +371,15 @@ export default function AddJobModal({ onClose, onSubmit }) {
               </div>
             </div>
 
-            {/* Details */}
-            <div className="space-y-3 pt-2">
-              <h4 className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Inventory & Dispatch details</h4>
+            {/* 3. Items & Notes Section */}
+            <div className="space-y-3 bg-slate-950/20 p-4 rounded-xl border border-slate-850">
+              <h4 className="text-[9.5px] uppercase font-black text-amber-400 tracking-wider flex items-center gap-1.5">
+                <Layers className="w-3.5 h-3.5" /> Inventory & Logistics Details
+              </h4>
               
               <div className="space-y-1">
-                <label className="text-[10px] text-slate-400 font-semibold block flex items-center gap-1">
-                  <Layers className="w-3 h-3" /> Items Description
+                <label className="text-[9.5px] text-slate-400 font-bold block flex items-center gap-1">
+                  Items Description
                 </label>
                 <textarea
                   name="items"
@@ -368,21 +387,21 @@ export default function AddJobModal({ onClose, onSubmit }) {
                   onChange={handleChange}
                   rows={2}
                   placeholder="e.g. 3 Bedroom House, sofa, boxes, upright piano..."
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-brand-500/50 resize-none"
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-650 focus:outline-none focus:border-brand-500/50 resize-none font-medium"
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] text-slate-400 font-semibold block flex items-center gap-1">
-                  <FileText className="w-3 h-3" /> Special Notes
+                <label className="text-[9.5px] text-slate-400 font-bold block flex items-center gap-1">
+                  Special Notes
                 </label>
                 <textarea
                   name="notes"
                   value={formData.notes}
                   onChange={handleChange}
                   rows={2}
-                  placeholder="Wrap grandfather clock, elevator bookings, heavy objects..."
-                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-brand-500/50 resize-none"
+                  placeholder="Elevator bookings, grandfather clock wrapping, heavy objects..."
+                  className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-white placeholder-slate-650 focus:outline-none focus:border-brand-500/50 resize-none font-medium"
                 />
               </div>
             </div>
@@ -392,15 +411,19 @@ export default function AddJobModal({ onClose, onSubmit }) {
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 text-xs font-semibold text-slate-400 hover:text-white transition-colors"
+                className="px-4 py-2 text-xs font-bold text-slate-400 hover:text-white transition-colors"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white text-xs font-bold rounded-xl transition-all shadow-md shadow-brand-600/15"
+                disabled={isSubmitting}
+                className="px-4 py-2 bg-brand-600 hover:bg-brand-500 active:bg-brand-750 text-white text-xs font-bold rounded-xl transition-all shadow-md shadow-brand-600/15 flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Create Inquiry
+                {isSubmitting ? (
+                  <span className="w-3.5 h-3.5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                ) : null}
+                {isSubmitting ? 'Creating...' : 'Create Inquiry'}
               </button>
             </div>
           </form>
@@ -410,52 +433,57 @@ export default function AddJobModal({ onClose, onSubmit }) {
             activeMobileTab === 'map' ? 'flex' : 'hidden lg:flex'
           }`}>
             
-            {/* Map Click Targeting Toggle */}
-            <div className="absolute top-4 left-4 right-4 z-10 flex items-center justify-between bg-slate-950/90 backdrop-blur-md p-2 rounded-xl border border-slate-800 shadow-xl">
-              <div className="flex items-center gap-2">
-                <Map className="w-4 h-4 text-brand-400 ml-1" />
-                <span className="text-[10px] font-bold text-slate-300 uppercase tracking-wider">Click Map To Set:</span>
+            {/* Unified Map Controller Box */}
+            <div className="absolute top-4 left-4 right-4 z-10 flex flex-col gap-2.5 bg-slate-950/95 backdrop-blur-md p-3 rounded-xl border border-slate-800 shadow-2xl">
+              <div className="flex justify-between items-center">
+                <span className="text-[9.5px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                  <Map className="w-4 h-4 text-brand-400" />
+                  Map Pointer Selector
+                </span>
+                
+                {/* Mode Selector */}
+                <div className="flex items-center gap-1 bg-slate-900/60 p-0.5 rounded-lg border border-slate-850">
+                  <button
+                    type="button"
+                    onClick={(e) => { e.preventDefault(); setMapClickTarget('origin'); }}
+                    className={`px-2.5 py-1 rounded-md text-[9px] font-black tracking-wide uppercase transition-all ${
+                      mapClickTarget === 'origin' 
+                        ? 'bg-brand-500/20 text-brand-400 border border-brand-500/30' 
+                        : 'text-slate-500 hover:text-slate-350 border border-transparent'
+                    }`}
+                  >
+                    Set Origin
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.preventDefault(); setMapClickTarget('destination'); }}
+                    className={`px-2.5 py-1 rounded-md text-[9px] font-black tracking-wide uppercase transition-all ${
+                      mapClickTarget === 'destination' 
+                        ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' 
+                        : 'text-slate-500 hover:text-slate-300 border border-transparent'
+                    }`}
+                  >
+                    Set Dest
+                  </button>
+                </div>
               </div>
-              <div className="flex items-center gap-1 bg-slate-900 p-1 rounded-lg">
-                <button
-                  onClick={(e) => { e.preventDefault(); setMapClickTarget('origin'); }}
-                  className={`px-3 py-1.5 rounded-md text-[10px] font-bold transition-all ${
-                    mapClickTarget === 'origin' 
-                      ? 'bg-brand-500/20 text-brand-400 border border-brand-500/30' 
-                      : 'text-slate-500 hover:text-slate-300 border border-transparent'
-                  }`}
-                >
-                  Origin
-                </button>
-                <button
-                  onClick={(e) => { e.preventDefault(); setMapClickTarget('destination'); }}
-                  className={`px-3 py-1.5 rounded-md text-[10px] font-bold transition-all ${
-                    mapClickTarget === 'destination' 
-                      ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' 
-                      : 'text-slate-500 hover:text-slate-300 border border-transparent'
-                  }`}
-                >
-                  Destination
-                </button>
-              </div>
-            </div>
 
-            {/* Floating Map Search Bar */}
-            <div className="absolute top-16 left-4 right-4 z-10">
+              {/* Fly Map Search Input inside unified box */}
               {isLoaded && (
                 <div className="relative">
-                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 z-10 pointer-events-none" />
+                  <Search className="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-1/2 -translate-y-1/2 z-10 pointer-events-none" />
                   <Autocomplete onLoad={onMapSearchLoad} onPlaceChanged={onMapSearchPlaceChanged}>
                     <input
                       type="text"
-                      placeholder="Search / Paste address to fly map..."
-                      className="w-full bg-slate-900/95 border border-slate-700/80 rounded-xl pl-9 pr-4 py-2.5 text-[11px] font-semibold text-white placeholder-slate-400 shadow-2xl backdrop-blur-md focus:outline-none focus:border-brand-500"
+                      placeholder="Search maps to locate coordinates..."
+                      className="w-full bg-slate-900/80 border border-slate-800 rounded-lg pl-8 pr-3 py-1.5 text-[10.5px] font-semibold text-white placeholder-slate-550 focus:outline-none focus:border-brand-500/50"
                     />
                   </Autocomplete>
                 </div>
               )}
             </div>
 
+            {/* Map Frame */}
             <div className="flex-1 w-full h-full relative">
               {!isLoaded ? (
                 <div className="w-full h-full flex items-center justify-center text-slate-500 text-xs font-semibold gap-2 animate-pulse">
